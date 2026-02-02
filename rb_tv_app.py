@@ -22,19 +22,35 @@ def login_shioaji():
     )
     return api
 
-# 3. 接收 TradingView 訊號的路徑
+# 3. 接收 TradingView 訊號的路徑=============================================
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    # 取得訊號文字內容
-    data = request.get_data(as_text=True)
-    
-    # 發送通知到 Telegram (非同步執行)
-    asyncio.run(tg_bot.send_message(chat_id=chat_id, text=f"🔔 潤鉑訊號通知：\n{data}"))
-    
-    # 這裡未來可以加入 api.place_order() 的下單邏輯
-    print(f"收到訊號: {data}")
-    return "OK", 200
+    # 1. 建議改用 JSON 解析，方便邏輯判斷
+    data = request.get_json()
+    if not data:
+        return "Invalid JSON", 400
 
+    ticker = data.get("ticker")
+    price = float(data.get("price", 0))
+    support_level = float(data.get("support", 0)) # 假設你從 TV 傳送 MA 數值
+    
+    # 2. 落實掃地僧 5% 紀律 [cite: 81]
+    # 計算買入價離支撐位（如 200MA）的距離
+    distance_pct = (price - support_level) / support_level if support_level > 0 else 999
+    
+    msg = f"🔔 訊號：{ticker} 價格 {price}\n"
+    
+    if distance_pct <= 0.05:
+        msg += f"✅ 符合 5% 紀律 (距離: {distance_pct:.2%})\n🚀 執行下單邏輯..."
+        # 這裡執行 api.place_order()
+    else:
+        msg += f"❌ 距離支撐過遠 ({distance_pct:.2%})，不予追高。"
+
+    # 3. 發送 Telegram 通知
+    asyncio.run(tg_bot.send_message(chat_id=chat_id, text=msg))
+    print(msg)
+    return "OK", 200
+# ==========================================================================================
 if __name__ == '__main__':
     # 僅供測試開發使用，正式生產環境會改用 gunicorn
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=80)
