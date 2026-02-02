@@ -1,0 +1,7 @@
+shioaji
+flask
+python-dotenv
+python-telegram-bot
+line-bot-sdk
+flask-cors
+gunicorn
