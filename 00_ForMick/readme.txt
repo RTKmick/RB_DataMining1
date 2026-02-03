@@ -30,4 +30,23 @@ python -m pip install --upgrade pip
 pip install flask requests shioaji python-dotenv
 
 //===========================================================================
-#ngrok git pull to GitHub (ngrok powershell)
+#ngrok git pull to GitHub (本機上傳到GitHub)
+C:\ngrok\RB_DataMining>
+git add .
+git commit -m "V1.0.0"
+git push origin master
+//===========================================================================
+#GitHub git push to ngrok (本機下載到ngrok)
+cd C:\ngrok
+git clone https://github.com/RTKmick/RB_DataMining.git
+
+cd C:\ngrok\RB_DataMining
+git pull origin master
+
+# 建立並啟動環境
+python -m venv venv
+.\venv\Scripts\activate
+
+# 一次裝好所有裝備
+pip install --upgrade pip
+pip install flask requests shioaji python-dotenv python-telegram-bot pandas
