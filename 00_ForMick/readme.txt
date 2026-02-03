@@ -1,0 +1,33 @@
+# --- 永豐金證券 Shioaji API 設定 ---
+SHIOAJI_API_KEY="14WkzEdjiPEPzaS6LF9Hwa1aFDKBNsPN68A3HLxBF7d"
+SHIOAJI_SECRET_KEY="79VwzxE3rrXpD6UzqydMvtCThfUvN4cNbZqeonoxVNXu"
+SHIOAJI_CERT_PATH="./Sinopac.pfx"
+SHIOAJI_CERT_PASSWORD="B121565115"
+SHIOAJI_PERSON_ID="B121565115"
+
+# --- Telegram Bot 設定 ---
+TELEGRAM_BOT_TOKEN="8193955449:AAG50J-zOIdy-8R_6Totsa2Fh_THf6E1qWI"
+TELEGRAM_CHAT_ID="-4917957878"
+
+# --- LINE Notify / Bot ES_LBot_ID 設定 --- 
+LINE_USER_ID="Ucd148c769b3342b47244c6b0013fcb0c"
+LINE_CHANNEL_ACCESS_TOKEN="41y5oArc5Rb+tcBFeWjq3nvSFWQmorqLu8QPt5v3Nx38tyl6SnMp1kVfx8j2swXxMALcz+gJ7WQvhgL8HL7>
+LINE_CHANNEL_SECRET="eba6cfb3df016211a02d46b3ca41b654"
+
+# --- 安全驗證 ---
+WEBHOOK_PASSPHRASE="runbor111"
+
+//===========================================================================
+#ngrok Authtokens
+.\ngrok.exe config add-authtoken 2JU9XuyzEviEi5agopY8srTvXNp_5Em8z3aqiDk9txMpEpR4W
+
+#ngrok 安裝 （或重新開啟 CMD）手動輸入
+cd C:\ngrok\RB_DataMining
+python -m venv venv
+.\venv\Scripts\activate
+pip install flask requests shioaji
+python -m pip install --upgrade pip
+pip install flask requests shioaji python-dotenv
+
+//===========================================================================
+#ngrok git pull to GitHub (ngrok powershell)
