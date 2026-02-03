@@ -1,23 +1,20 @@
+echo ✅ Synchronization and log update complete!
+pause
+
 @echo off
+:: 1. 先進入根目錄
 cd /d C:\ngrok
 
-if exist "RB_DataMining" (
-    echo 📂 Installed detected, syncing in progress....
-    cd RB_DataMining
-    git pull origin master
-) else (
-    echo 📥 New environment detected, downloading......
+:: 2. 檢查資料夾是否存在
+if not exist "RB_DataMining" (
+    echo 📥 Installed detected, syncing in progress....
     git clone https://github.com/RTKmick/RB_DataMining.git
+) else (
+    echo 📂 New environment detected, downloading......
     cd RB_DataMining
+    :: 直接用 pull 而不是 clone，這樣就不會產生兩層資料夾
+    git pull origin master
 )
 
-:: 寫入 Log
-echo %date% %time% - Run [Download/Sync] (downl_rb) >> Log.txt
-
-:: 將 Log 上傳到 GitHub
-git add Log.txt
-git commit -m "Log: Download sync history"
-git push origin master
-
-echo ✅ Synchronization and log update complete!
+echo ✅ 處理完成！
 pause

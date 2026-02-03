@@ -1,3 +1,18 @@
+VS Code
+Ctrl + Shift + P >>輸入並選擇：Python
+Ctrl + ~ >>(數字 1 左邊那個鍵) 開啟終端機
+
+
+
+
+
+
+
+
+
+
+//===========================================================================
+
 # --- 永豐金證券 Shioaji API 設定 ---
 SHIOAJI_API_KEY="14WkzEdjiPEPzaS6LF9Hwa1aFDKBNsPN68A3HLxBF7d"
 SHIOAJI_SECRET_KEY="79VwzxE3rrXpD6UzqydMvtCThfUvN4cNbZqeonoxVNXu"
