@@ -24,7 +24,7 @@ def get_twse_investors(date_str):
     except Exception as e:
         print(f"❌ 爬取失敗: {e}")
 
-# 測試抓取今天（或最近一個交易日）
+# 測試抓取今天（或最近一個交易日）0203
 if __name__ == "__main__":
     today = datetime.now().strftime("%Y%m%d")
     get_twse_investors(today)
