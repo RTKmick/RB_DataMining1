@@ -8,18 +8,20 @@ start cmd /k "cd C:\ngrok\RB_DataMining && .\venv\Scripts\activate && python rb_
 .\ngrok http --domain=medicably-aeromechanical-yadiel.ngrok-free.dev 80
 python rb_tv_app.py
 (ngrok Authtoken)
-.\ngrok config add-authtoken 2JU9XuyzEviEi5agopY8srTvXNp_5Em8z3aqiDk9txMpEpR4W
-.\ngrok http --domain=medicably-aeromechanical-yadiel.ngrok-free.dev 80
 
+//---------------------------------------------
 右邊視窗	Python 程式 (rb_tv_app.py)	要venv！	因為程式需要用到您裝在裡面的 pandas、flask 等套件。
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 python -m venv venv
 .\venv\Scripts\activate
 pip install FinMind
+>>>python rb_tv_app.py
 
 //------------
 左邊視窗	ngrok 工具 (ngrok.exe) 它跟 Python 無關。
 git pull origin master
+>>.\ngrok config add-authtoken 2JU9XuyzEviEi5agopY8srTvXNp_5Em8z3aqiDk9txMpEpR4W
+>>.\ngrok http --domain=medicably-aeromechanical-yadiel.ngrok-free.dev 80
 
 
 (永久門牌)

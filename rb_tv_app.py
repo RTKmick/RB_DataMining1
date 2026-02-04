@@ -73,21 +73,14 @@ def check_stock_monk_rule(stock_id):
     
     return False, "⚠️ 查無今日籌碼"
 
-# ======================================================
-# 2-1. 抓取最新籌碼/存入 CSV/執行過濾公式 (掃地僧核心2)
-# ======================================================
-def make_decision(ticker, current_price):
-    # 執行爬蟲抓取 (假設日期為今天)
-    today = datetime.now().strftime("%Y%m%d")
-    new_data = get_stock_chip(today, ticker) # 呼叫我們寫好的 Scraper
-    
-    if new_data is not None:
-        save_to_local_db(ticker, new_data) # 更新 CSV 資料庫
 
-    # 執行籌碼趨勢檢查
-    is_chip_pass = chip_filter_logic(ticker) # 檢查最近 5 日買超
-    
-    return is_chip_pass
+# ======================================================
+# 2-1. 決策邏輯 (整合版)
+# ======================================================
+def make_decision(ticker, price):
+    # 直接呼叫您已經寫好的檢查邏輯
+    is_pass, status_msg = check_stock_monk_rule(ticker)
+    return is_pass, status_msg
 
 # ======================================================
 # 3. Webhook 接收端與 Telegram 發送
