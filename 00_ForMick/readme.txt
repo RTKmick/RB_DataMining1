@@ -1,7 +1,7 @@
 VS Code
-Ctrl + Shift + P >>輸入並選擇：Python
-Ctrl + ~ >>(數字 1 左邊那個鍵) 開啟終端機
-
+Ctrl + Shift + P >>輸入並選擇：Python: Select Interpreter 選擇路徑中有 ('venv': venv) 的那一個。
+Ctrl + ~ >>(數字 1 左邊那個鍵) 開啟終端機 >> git pull origin master
+//--------------------------------------------------------------------------------------
 start cmd /k "cd C:\ngrok\ && ngrok http --domain=medicably-aeromechanical-yadiel.ngrok-free.dev 80"
 start cmd /k "cd C:\ngrok\RB_DataMining && .\venv\Scripts\activate && python rb_tv_app.py"
 
@@ -11,10 +11,24 @@ python rb_tv_app.py
 .\ngrok config add-authtoken 2JU9XuyzEviEi5agopY8srTvXNp_5Em8z3aqiDk9txMpEpR4W
 .\ngrok http --domain=medicably-aeromechanical-yadiel.ngrok-free.dev 80
 
-右邊視窗	Python 程式 (rb_tv_app.py)	要！	因為程式需要用到您裝在裡面的 pandas、flask 等套件。
-左邊視窗	ngrok 工具 (ngrok.exe)	不用！	ngrok 是一個獨立的軟體（.exe），它跟 Python 無關。它只負責挖地道，不管地道裡跑的是什麼程式。
+右邊視窗	Python 程式 (rb_tv_app.py)	要venv！	因為程式需要用到您裝在裡面的 pandas、flask 等套件。
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+python -m venv venv
+.\venv\Scripts\activate
+pip install FinMind
+
+//------------
+左邊視窗	ngrok 工具 (ngrok.exe) 它跟 Python 無關。
+git pull origin master
+
+
 (永久門牌)
 https://medicably-aeromechanical-yadiel.ngrok-free.dev/webhook
+
+git config --global user.name "RTKmick"
+git config --global user.email "mick.sung01@gmail.com"
+
+
 
 //===========================================================================
 
