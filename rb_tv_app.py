@@ -1,6 +1,7 @@
+# rb_tv_app.py
 import os
-import time
 import json
+import time
 import requests
 import pandas as pd
 import urllib3
@@ -25,9 +26,8 @@ FINMIND_TOKEN = (os.getenv("FINMIND_API_TOKEN") or "").strip()
 
 TWSE_T86_URL = "https://www.twse.com.tw/rwd/zh/fund/T86"
 FINMIND_V4_DATA_URL = "https://api.finmindtrade.com/api/v4/data"
-FINMIND_TDR_URL = "https://api.finmindtrade.com/api/v4/taiwan_stock_trading_daily_report"
 
-# 建議：預設先 True；若你公司網路/憑證有問題可改 False
+# 建議：公司網路/憑證怪怪可改 False（會自動降級）
 VERIFY_SSL = True
 
 app = Flask(__name__)
@@ -48,7 +48,6 @@ class FinMindClient:
 
     def _build_session(self) -> requests.Session:
         s = requests.Session()
-
         retries = Retry(
             total=5,
             connect=5,
@@ -79,34 +78,13 @@ class FinMindClient:
         try:
             r = self.session.get(FINMIND_V4_DATA_URL, params=params, timeout=30, verify=self.verify_ssl)
             js = r.json() if r.content else {}
-            api_status = js.get("status")
-            if r.status_code == 200 and api_status == 200:
-                return pd.DataFrame(js.get("data", []))
-            return pd.DataFrame()
-        except requests.exceptions.SSLError:
-            # SSL 驗證失敗時自動降級（避免整站掛）
-            try:
-                r = self.session.get(FINMIND_V4_DATA_URL, params=params, timeout=30, verify=False)
-                js = r.json() if r.content else {}
-                if r.status_code == 200 and js.get("status") == 200:
-                    return pd.DataFrame(js.get("data", []))
-            except Exception:
-                pass
-            return pd.DataFrame()
-        except Exception:
-            return pd.DataFrame()
-
-    def request_trading_daily_report(self, stock_id: str, date_yyyy_mm_dd: str) -> pd.DataFrame:
-        params = {"data_id": stock_id, "date": date_yyyy_mm_dd}
-        try:
-            r = self.session.get(FINMIND_TDR_URL, params=params, timeout=30, verify=self.verify_ssl)
-            js = r.json() if r.content else {}
             if r.status_code == 200 and js.get("status") == 200:
                 return pd.DataFrame(js.get("data", []))
             return pd.DataFrame()
         except requests.exceptions.SSLError:
+            # SSL 失敗自動降級
             try:
-                r = self.session.get(FINMIND_TDR_URL, params=params, timeout=30, verify=False)
+                r = self.session.get(FINMIND_V4_DATA_URL, params=params, timeout=30, verify=False)
                 js = r.json() if r.content else {}
                 if r.status_code == 200 and js.get("status") == 200:
                     return pd.DataFrame(js.get("data", []))
@@ -142,7 +120,7 @@ def append_unique_row_csv(file_path: str, df_row: pd.DataFrame, key_col: str = "
         return
 
     try:
-        existing = pd.read_csv(file_path)
+        existing = pd.read_csv(file_path, dtype=str)
         existing_keys = set(existing[key_col].astype(str).tolist()) if key_col in existing.columns else set()
         new_key = str(df_row[key_col].iloc[0])
         if new_key in existing_keys:
@@ -156,7 +134,6 @@ def send_telegram(msg: str):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print(f"⚠️ [{now_str()}] Telegram 未設定，略過推播。")
         return
-
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     try:
         requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, timeout=15)
@@ -164,7 +141,7 @@ def send_telegram(msg: str):
         print(f"⚠️ [{now_str()}] Telegram 發送失敗: {repr(e)}")
 
 
-def get_recent_trading_dates(days: int = 10, lookback: int = 60):
+def get_recent_trading_dates(days: int = 10, lookback: int = 90):
     start_date = (datetime.now() - timedelta(days=lookback)).strftime("%Y-%m-%d")
     df = fm.request_data("TaiwanStockTradingDate", start_date=start_date)
     if df.empty or "date" not in df.columns:
@@ -174,8 +151,79 @@ def get_recent_trading_dates(days: int = 10, lookback: int = 60):
     return dates[-days:]
 
 
+def get_stock_name(stock_id: str) -> str:
+    """
+    優先用 FinMind TaiwanStockInfo 抓中文名；失敗就回 stock_id（避免 6239 6239）
+    """
+    name = stock_id
+    try:
+        info_df = fm.request_data("TaiwanStockInfo", data_id=stock_id)
+        if not info_df.empty:
+            if "stock_name" in info_df.columns and str(info_df["stock_name"].iloc[0]).strip():
+                name = str(info_df["stock_name"].iloc[0]).strip()
+            elif "name" in info_df.columns and str(info_df["name"].iloc[0]).strip():
+                name = str(info_df["name"].iloc[0]).strip()
+    except Exception:
+        pass
+    return name
+
+
+def load_broker_master_enriched(data_path: str) -> dict:
+    """
+    讀 ./data/broker_master_enriched.csv，回傳 mapping:
+      broker_id -> {city, broker_org_type, is_proprietary, seat_type, broker_name(optional)}
+    若檔案不存在就回空 dict（不讓 dashboard 爆）
+    """
+    path = os.path.join(data_path, "broker_master_enriched.csv")
+    if not os.path.exists(path):
+        return {}
+
+    try:
+        df = pd.read_csv(path, dtype=str).fillna("")
+    except Exception:
+        return {}
+
+    keep_cols = set(df.columns)
+    out = {}
+    for _, r in df.iterrows():
+        bid = str(r.get("broker_id", "")).strip()
+        if not bid:
+            continue
+        out[bid] = {
+            "city": str(r.get("city", "")).strip(),
+            "broker_org_type": str(r.get("broker_org_type", "")).strip(),  # foreign/local/unknown
+            "is_proprietary": str(r.get("is_proprietary", "")).strip(),    # Y/N
+            "seat_type": str(r.get("seat_type", "")).strip(),              # hq/branch/aggregate/unknown
+        }
+        if "broker_name" in keep_cols:
+            out[bid]["broker_name"] = str(r.get("broker_name", "")).strip()
+    return out
+
+
+def enrich_top6_details(top6_details: list, broker_map: dict) -> list:
+    """
+    把 top6_details 補上 city / broker_org_type / is_proprietary / seat_type
+    """
+    if not isinstance(top6_details, list):
+        return []
+
+    out = []
+    for b in top6_details:
+        if not isinstance(b, dict):
+            continue
+        bid = str(b.get("broker_id", "")).strip()
+        meta = broker_map.get(bid, {}) if bid else {}
+        nb = dict(b)
+        # 補欄位（若 scraper 已經有就不覆蓋非空）
+        for k in ["city", "broker_org_type", "is_proprietary", "seat_type"]:
+            if (k not in nb) or (nb.get(k) in (None, "", "nan")):
+                nb[k] = meta.get(k, "")
+        out.append(nb)
+    return out
+
+
 # ======================================================
-# C. 核心邏輯：籌碼檢查（TWSE T86 → 近 5 日同買）
+# C. 籌碼規則（TWSE T86 → 近 5 日外資+投信同買）
 # ======================================================
 def check_stock_monk_rule(stock_id: str):
     date_str = datetime.now().strftime("%Y%m%d")
@@ -231,7 +279,7 @@ def webhook():
     if not data:
         return jsonify({"status": "error", "msg": "no json body"}), 400
 
-    ticker = str(data.get("ticker", "")).replace("TWSE:", "").strip()
+    ticker = str(data.get("ticker", "")).replace("TWSE:", "").replace("TPEX:", "").strip()
     price = str(data.get("price", "0")).strip()
 
     if not ticker.isdigit():
@@ -253,95 +301,65 @@ def webhook():
 @app.route("/dashboard/")
 def dashboard():
     stock_id = request.args.get("stock_id", "6239").strip()
+    stock_name = get_stock_name(stock_id)
 
     json_path = os.path.join(DATA_PATH, f"{stock_id}_whale_track.json")
-    boss_path = os.path.join(DATA_PATH, f"{stock_id}_boss_list.csv")
+    broker_map = load_broker_master_enriched(DATA_PATH)
 
     stock_info = {
         "id": stock_id,
-        "name": "力成",
-        "status": "⚪ 初始化中",
+        "name": stock_name,
+        "status": "⚪ 等待數據載入中",
         "last_update": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "trend": "觀察中",
-        "concentration_10d": 0,
-        "concentration_5d": 0,
+        "probe_date": "",
+        # 走向/訊號（新版放 signals）
+        "signals": {},
+        # Top6 軌跡圖
         "history_labels": [],
         "whale_data": [],
         "total_whale_values": [],
+        # Top6 表
         "top6_details": [],
-        "boss_list": [],
-        "today_action": [],
-        "unit": "share",   # 預設以股為單位（前端 /1000 顯示張）
     }
 
-    # 0) 讀 boss_list.csv（可選）
-    if os.path.exists(boss_path):
-        try:
-            boss_df = pd.read_csv(boss_path)
-            if not boss_df.empty:
-                stock_info["boss_list"] = boss_df.head(10).to_dict("records")
-        except Exception:
-            pass
-
-    # 1) 讀取 10 日軌跡 JSON
     if os.path.exists(json_path):
         try:
             with open(json_path, "r", encoding="utf-8") as f:
                 track_data = json.load(f)
 
-            stock_info.update({
-                "history_labels": track_data.get("history_labels", []),
-                "whale_data": track_data.get("whale_data", []),
-                "total_whale_values": track_data.get("total_whale_values", []),
-                "concentration_10d": track_data.get("concentration_10d", 0),
-                "concentration_5d": track_data.get("concentration_5d", 0),
-                "top6_details": track_data.get("top6_details", []),
-                "status": "✅ 大戶軌跡數據已載入"
-            })
+            # 兼容：舊 JSON 沒有 signals
+            signals = track_data.get("signals", {})
+            stock_info["signals"] = signals if isinstance(signals, dict) else {}
 
-            c10 = float(stock_info.get("concentration_10d", 0) or 0)
-            if c10 > 15:
-                stock_info["trend"] = "🔥 籌碼高度集中，主力強勢吃貨"
-            elif c10 > 5:
-                stock_info["trend"] = "📈 籌碼溫和緩集"
-            else:
-                stock_info["trend"] = "⚖️ 籌碼分布中性"
+            # 主要圖表欄位
+            stock_info["history_labels"] = track_data.get("history_labels", []) or []
+            stock_info["whale_data"] = track_data.get("whale_data", []) or []
+            stock_info["total_whale_values"] = track_data.get("total_whale_values", []) or []
+            top6 = track_data.get("top6_details", []) or []
+            stock_info["top6_details"] = enrich_top6_details(top6, broker_map)
+
+            # 更新時間：用檔案 mtime
+            mtime = datetime.fromtimestamp(os.path.getmtime(json_path)).strftime("%Y-%m-%d %H:%M")
+            stock_info["last_update"] = mtime
+
+            # 參考日：用 labels 的最後一天（若有）
+            if isinstance(stock_info["history_labels"], list) and len(stock_info["history_labels"]) > 0:
+                stock_info["probe_date"] = stock_info["history_labels"][-1]
+
+            # 狀態字：把 score/集中度塞進去，跟你截圖一致
+            score = stock_info["signals"].get("score", 0)
+            c5 = stock_info["signals"].get("concentration_5d", 0)
+            c20 = stock_info["signals"].get("concentration_20d", 0)
+            trend = stock_info["signals"].get("trend", "觀察中")
+            stock_info["status"] = f"✅ 籌碼訊號已載入 | Score={score} | 5D={c5}% | 20D={c20}% | {trend}"
 
         except Exception as e:
-            print(f"⚠️ JSON 讀取失敗: {repr(e)}")
-
-    # 2) 抓取最近一日動作（用 top6_details 過濾）
-    recent_dates = get_recent_trading_dates(days=3)
-    if recent_dates:
-        probe_date = recent_dates[-1]
-        daily_df = fm.request_trading_daily_report(stock_id=stock_id, date_yyyy_mm_dd=probe_date)
-
-        if not daily_df.empty:
-            if "securities_trader_id" in daily_df.columns and "broker_id" not in daily_df.columns:
-                daily_df.rename(columns={"securities_trader_id": "broker_id"}, inplace=True)
-            if "securities_trader" in daily_df.columns and "broker_name" not in daily_df.columns:
-                daily_df.rename(columns={"securities_trader": "broker_name"}, inplace=True)
-
-            need_cols = {"broker_id", "broker_name", "buy", "sell"}
-            if need_cols.issubset(set(daily_df.columns)):
-                daily_df["buy"] = pd.to_numeric(daily_df["buy"], errors="coerce").fillna(0)
-                daily_df["sell"] = pd.to_numeric(daily_df["sell"], errors="coerce").fillna(0)
-                daily_df["net"] = daily_df["buy"] - daily_df["sell"]
-
-                boss_ids = [str(b.get("broker_id")) for b in stock_info.get("top6_details", []) if b.get("broker_id") is not None]
-                if boss_ids:
-                    today_boss = daily_df[daily_df["broker_id"].astype(str).isin(boss_ids)].copy()
-                    if not today_boss.empty:
-                        top_one = today_boss.sort_values(by="net", ascending=False).iloc[0]
-                        stock_info["status"] = f"✅ {probe_date} 關鍵分點『{top_one['broker_name']}』大買 {int(top_one['net']/1000)} 張！"
-                        stock_info["today_action"] = today_boss.sort_values(by="net", ascending=False).head(50).to_dict("records")
-            else:
-                stock_info["status"] = f"⚠️ {probe_date} 分點欄位不齊，無法計算"
+            stock_info["status"] = f"⚠️ JSON 讀取失敗: {repr(e)}"
 
     return render_template("dashboard.html", stock=stock_info)
 
 
 if __name__ == "__main__":
-    # Windows 本機預設 5000（避免 80 權限/佔用/ERR_NGROK_8012）
+    # 本機建議 5000；GCP/容器可用環境變數 PORT
     port = int(os.getenv("PORT", "80"))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)
