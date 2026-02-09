@@ -7,7 +7,6 @@
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
 
   <style>
     .broker-chip {
@@ -32,8 +31,8 @@
     .badge-boss { background-color: #f1c40f; color: #000; font-weight: bold; }
 
     .chart-container { position: relative; height: 350px; width: 100%; margin-bottom: 20px; }
-    .chart-container-bar { position: relative; height: 520px; width: 100%; margin-bottom: 20px; } /* bar chart height */
-    .chart-container-mini { position: relative; height: 280px; width: 100%; margin-bottom: 20px; } /* trend chart height */
+    .chart-container-bar { position: relative; height: 520px; width: 100%; margin-bottom: 20px; }
+    .chart-container-mini { position: relative; height: 280px; width: 100%; margin-bottom: 20px; }
 
     .metric-card { text-align: center; padding: 15px; border-radius: 8px; background: #252525; }
     .metric-value { font-size: 1.8rem; font-weight: bold; color: #f1c40f; }
@@ -59,10 +58,10 @@
 
 <body>
 <div class="container py-5">
-  <h1 class="mb-4 text-center" style="color: #f1c40f;">📊 RB 掃地僧籌碼戰情室V1.1.0</h1>
+  <h1 class="mb-4 text-center" style="color: #f1c40f;">📊 RB 掃地僧籌碼戰情室V1.2.0</h1>
 
   <div class="row justify-content-center">
-    {# 兼容：stocks(list) 或 stock(dict) #}
+
     {% set items = stocks if stocks is defined else ([stock] if stock is defined else []) %}
 
     {% if items and items|length > 0 %}
@@ -103,93 +102,96 @@
               </div>
             </div>
 
-            {# ========= KPI：集中度(%) 與主力走向 ========= #}
-            {% set kpi_c20 = (sig.concentration_20d if sig.concentration_20d is defined else 0) %}
-            {% set kpi_c5  = (sig.concentration_5d  if sig.concentration_5d  is defined else 0) %}
-            {% set kpi_trend = (sig.trend if sig.trend is defined else '觀察中') %}
+
+            {# ========= KPI：集中度 & 主力走向 ========= #}
+            {% set kpi_c20 = sig.concentration_20d if sig.concentration_20d is defined else 0 %}
+            {% set kpi_c5  = sig.concentration_5d  if sig.concentration_5d  is defined else 0 %}
+            {% set kpi_trend = sig.trend if sig.trend is defined else '觀察中' %}
 
             <div class="row mb-4">
               <div class="col-md-4">
                 <div class="metric-card">
-                  <div class="metric-label">20日集中度 (WantGoo公式) (%)</div>
+                  <div class="metric-label">20日集中度 (%)</div>
                   <div class="metric-value">{{ kpi_c20 }}%</div>
                 </div>
               </div>
               <div class="col-md-4">
                 <div class="metric-card">
-                  <div class="metric-label">5日集中度 (WantGoo公式) (%)</div>
+                  <div class="metric-label">5日集中度 (%)</div>
                   <div class="metric-value">{{ kpi_c5 }}%</div>
                 </div>
               </div>
               <div class="col-md-4">
                 <div class="metric-card">
                   <div class="metric-label">主力走向</div>
-                  <div class="metric-value" style="font-size: 1.15rem; line-height: 2.5rem;">
+                  <div class="metric-value" style="font-size: 1.15rem;">
                     {{ kpi_trend }}
                   </div>
                 </div>
               </div>
             </div>
 
-            {# ========= NEW: TradingView Smart Money Radar ========= #}
-            <h6 class="text-info mt-4 mb-3">📡 TradingView 主力行為偵測 (Smart Money Radar)</h6>
+
+            {# ========= TradingView Smart Money Radar ========= #}
+            <h6 class="text-info mt-4 mb-3">📡 TradingView 主力行為偵測 Smart Money Radar</h6>
 
             <div class="row mb-4">
               <div class="col-md-3">
                 <div class="metric-card">
                   <div class="metric-label">TV Score (0~5)</div>
                   <div class="metric-value">{{ sig.tv_score if sig.tv_score is defined else 0 }}</div>
-                  <div class="metric-label mt-1 text-warning">等級：{{ sig.tv_grade if sig.tv_grade is defined else 'weak' }}</div>
+                  <div class="metric-label mt-1 text-warning">
+                    等級：{{ sig.tv_grade if sig.tv_grade is defined else 'weak' }}
+                  </div>
                 </div>
               </div>
 
               <div class="col-md-9">
                 <div class="metric-card" style="text-align:left;">
-                  <div class="metric-label mb-2">五大主力訊號（1 = 成立）</div>
+                  <div class="metric-label mb-2">五大訊號（1 = 成立）</div>
 
                   <div class="d-flex flex-wrap" style="gap:10px;">
-
-                    <div class="tag-pill" style="border-color:#888;">
-                      VWAP 主力成本線：
-                      <span style="color:{{ 'lime' if sig.sig_vwap == 1 else '#999' }};">
+                    <div class="tag-pill">VWAP 主力成本線：
+                      <span style="color:{{ 'lime' if sig.sig_vwap else '#999' }}">
                         {{ sig.sig_vwap if sig.sig_vwap is defined else 0 }}
                       </span>
                     </div>
 
-                    <div class="tag-pill" style="border-color:#888;">
-                      吸籌偵測(OBV/A-D)：
-                      <span style="color:{{ 'lime' if sig.sig_accumulation == 1 else '#999' }};">
+                    <div class="tag-pill">吸籌偵測：
+                      <span style="color:{{ 'lime' if sig.sig_accumulation else '#999' }}">
                         {{ sig.sig_accumulation if sig.sig_accumulation is defined else 0 }}
                       </span>
                     </div>
 
-                    <div class="tag-pill" style="border-color:#888;">
-                      爆量換手：
-                      <span style="color:{{ 'lime' if sig.sig_rotation == 1 else '#999' }};">
+                    <div class="tag-pill">爆量換手：
+                      <span style="color:{{ 'lime' if sig.sig_rotation else '#999' }}">
                         {{ sig.sig_rotation if sig.sig_rotation is defined else 0 }}
                       </span>
                     </div>
 
-                    <div class="tag-pill" style="border-color:#888;">
-                      量價關鍵區(HVN)：
-                      <span style="color:{{ 'lime' if sig.sig_profile_zone == 1 else '#999' }};">
+                    <div class="tag-pill">HVN 關鍵區：
+                      <span style="color:{{ 'lime' if sig.sig_profile_zone else '#999' }}">
                         {{ sig.sig_profile_zone if sig.sig_profile_zone is defined else 0 }}
                       </span>
                     </div>
 
-                    <div class="tag-pill" style="border-color:#888;">
-                      結構突破(BOS)：
-                      <span style="color:{{ 'lime' if sig.sig_structure_break == 1 else '#999' }};">
+                    <div class="tag-pill">結構突破 BOS：
+                      <span style="color:{{ 'lime' if sig.sig_structure_break else '#999' }}">
                         {{ sig.sig_structure_break if sig.sig_structure_break is defined else 0 }}
                       </span>
                     </div>
-
                   </div>
                 </div>
               </div>
             </div>
 
-            {# ========= KPI：Score + NetBuy(張) ========= #}
+
+            {# ========= 新增區塊：主力成本帶 Cost Zone ========= #}
+            <h6 class="text-info mt-4 mb-3">🏷 主力成本帶（Top6 Cost Zone）</h6>
+            <div class="chart-container-mini">
+              <canvas id="costZoneChart-{{ stock.id }}"></canvas>
+            </div>
+            {# ========= KPI：主力分數 & NetBuy ========= #}
             <div class="row mb-4">
               <div class="col-md-3">
                 <div class="metric-card">
@@ -218,42 +220,56 @@
                   <div class="metric-value">{{ sig.netbuy_20d_lot if sig.netbuy_20d_lot is defined else 0 }}</div>
                 </div>
               </div>
+
+              <div class="col-md-3 mt-4">
+                <div class="metric-card">
+                  <div class="metric-label">20日 Top15 主力差(張)</div>
+                  <div class="metric-value">{{ sig.delta_major_flow_20 if sig.delta_major_flow_20 is defined else 0 }}</div>
+                  <div class="metric-label mt-1 text-warning">
+                    買: {{ sig.top15_buy_sum_20 }} | 賣: {{ sig.top15_sell_sum_20 }}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {# ========= NEW: Breadth（買超X家/賣超Y家） ========= #}
+
+            {# ========= Breadth KPI ========= #}
             <div class="row mb-4">
               <div class="col-md-3">
                 <div class="metric-card">
                   <div class="metric-label">近20日 買超家數</div>
-                  <div class="metric-value">{{ sig.buy_count_20d if sig.buy_count_20d is defined else 0 }}</div>
+                  <div class="metric-value">{{ sig.buy_count_20d }}</div>
                 </div>
               </div>
               <div class="col-md-3">
                 <div class="metric-card">
                   <div class="metric-label">近20日 賣超家數</div>
-                  <div class="metric-value">{{ sig.sell_count_20d if sig.sell_count_20d is defined else 0 }}</div>
+                  <div class="metric-value">{{ sig.sell_count_20d }}</div>
                 </div>
               </div>
               <div class="col-md-3">
                 <div class="metric-card">
                   <div class="metric-label">近5日 買超家數</div>
-                  <div class="metric-value">{{ sig.buy_count_5d if sig.buy_count_5d is defined else 0 }}</div>
+                  <div class="metric-value">{{ sig.buy_count_5d }}</div>
                 </div>
               </div>
               <div class="col-md-3">
                 <div class="metric-card">
                   <div class="metric-label">近5日 賣超家數</div>
-                  <div class="metric-value">{{ sig.sell_count_5d if sig.sell_count_5d is defined else 0 }}</div>
+                  <div class="metric-value">{{ sig.sell_count_5d }}</div>
                 </div>
               </div>
             </div>
 
-            {# ========= NEW: Breadth Trend Chart（需 scraper 輸出 labels_20d + buy/sell_count_series_20d） ========= #}
-            <h6 class="text-info mt-2 mb-3">📉 廣度趨勢（買超家數 / 賣超家數 / 差值）</h6>
+
+            {# ========= Breadth Trend Chart ========= #}
+            <h6 class="text-info mt-3 mb-3">📉 廣度趨勢（買超 X 家 / 賣超 Y 家 / 差值）</h6>
             <div class="chart-container-mini">
               <canvas id="breadthTrend-{{ stock.id }}"></canvas>
             </div>
 
+
+            {# ========= 外資/本土 主力 5 日累計 ========= #}
             <div class="row mb-4">
               <div class="col-md-6">
                 <div class="metric-card">
@@ -274,7 +290,8 @@
               </div>
             </div>
 
-            {# ========= Top15 Table ========= #}
+
+            {# ========= Top15 買 / 賣 ========= #}
             <h6 class="text-info mt-4 mb-3">🏦 20日買方 Top15 / 賣方 Top15（含連買/連賣）</h6>
             <div class="row">
               <div class="col-md-6">
@@ -290,26 +307,24 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {% if sig.top_buy_15 is defined and sig.top_buy_15 %}
+                      {% if sig.top_buy_15 %}
                         {% for r in sig.top_buy_15 %}
-                          {% set org = r.broker_org_type if r.broker_org_type is defined else 'unknown' %}
                           <tr>
                             <td><code>{{ r.broker_id }}</code> {{ r.broker_name }}</td>
-                            <td class="text-end buy-row">{{ r.net_lot | round(0) | int }}</td>
-                            <td class="text-end text-warning">{{ r.streak_buy if r.streak_buy is defined else 0 }}</td>
-                            <td class="text-end text-secondary">{{ r.city if r.city is defined and r.city else '-' }}</td>
-                            <td class="text-end text-secondary">
-                              {{ '外資' if org == 'foreign' else ('本土' if org == 'local' else '未知') }}
-                            </td>
+                            <td class="text-end buy-row">{{ r.net_lot }}</td>
+                            <td class="text-end text-warning">{{ r.streak_buy }}</td>
+                            <td class="text-end text-secondary">{{ r.city if r.city else '-' }}</td>
+                            <td class="text-end text-secondary">{{ '外資' if r.broker_org_type == 'foreign' else '本土' }}</td>
                           </tr>
                         {% endfor %}
                       {% else %}
-                        <tr><td colspan="5" class="text-center text-muted">尚無 signals.top_buy_15（請先執行新版 scraper）</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted">尚無買方資料</td></tr>
                       {% endif %}
                     </tbody>
                   </table>
                 </div>
               </div>
+
 
               <div class="col-md-6">
                 <div class="table-responsive">
@@ -324,21 +339,18 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {% if sig.top_sell_15 is defined and sig.top_sell_15 %}
+                      {% if sig.top_sell_15 %}
                         {% for r in sig.top_sell_15 %}
-                          {% set org = r.broker_org_type if r.broker_org_type is defined else 'unknown' %}
                           <tr>
                             <td><code>{{ r.broker_id }}</code> {{ r.broker_name }}</td>
-                            <td class="text-end sell-row">{{ r.net_lot | round(0) | int }}</td>
-                            <td class="text-end text-warning">{{ r.streak_sell if r.streak_sell is defined else 0 }}</td>
-                            <td class="text-end text-secondary">{{ r.city if r.city is defined and r.city else '-' }}</td>
-                            <td class="text-end text-secondary">
-                              {{ '外資' if org == 'foreign' else ('本土' if org == 'local' else '未知') }}
-                            </td>
+                            <td class="text-end sell-row">{{ r.net_lot }}</td>
+                            <td class="text-end text-warning">{{ r.streak_sell }}</td>
+                            <td class="text-end text-secondary">{{ r.city if r.city else '-' }}</td>
+                            <td class="text-end text-secondary">{{ '外資' if r.broker_org_type == 'foreign' else '本土' }}</td>
                           </tr>
                         {% endfor %}
                       {% else %}
-                        <tr><td colspan="5" class="text-center text-muted">尚無 signals.top_sell_15（請先執行新版 scraper）</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted">尚無賣方資料</td></tr>
                       {% endif %}
                     </tbody>
                   </table>
@@ -346,30 +358,51 @@
               </div>
             </div>
 
-            {# ========= Horizontal Bar Chart ========= #}
-            <h6 class="text-info mt-4 mb-3">📊 分點買賣超排行（20日 Top15 買/賣，橫向長條）</h6>
+
+            {# ========= Tornado Bar：20日買賣超排行 ========= #}
+            <h6 class="text-info mt-4 mb-3">📊 分點買賣超排行（20日 Top15 買/賣）</h6>
+
             <div class="row g-0" style="border:1px solid #333;border-radius:12px;overflow:hidden;">
               <div class="col-6" style="background:#121212;">
-                <div class="chart-container-bar" style="height:520px;margin:0;padding:12px;">
+                <div class="chart-container-bar" style="margin:0;padding:12px;">
                   <canvas id="rankBuy-{{ stock.id }}"></canvas>
                 </div>
               </div>
               <div class="col-6" style="background:#121212;border-left:1px solid #333;">
-                <div class="chart-container-bar" style="height:520px;margin:0;padding:12px;">
+                <div class="chart-container-bar" style="margin:0;padding:12px;">
                   <canvas id="rankSell-{{ stock.id }}"></canvas>
                 </div>
               </div>
             </div>
+
+
+            {# ========= Whale 10日軌跡 ========= #}
             <h6 class="text-info mb-3 mt-4">📈 Top 6 核心大戶：近十日買賣超累計軌跡 (張)</h6>
             <div class="chart-container">
               <canvas id="whaleChart-{{ stock.id }}"></canvas>
             </div>
 
-            <h6 class="text-info mt-5 mb-3">📍 Top 6 大戶各別動態清單</h6>
-            <div class="table-responsive">
 
+            {# ========= 新增 Coherence Trend 圖 ========= #}
+            <h6 class="text-info mt-4 mb-3">👥 主力群聚買超趨勢（Coherence Trend）</h6>
+            <div class="chart-container-mini">
+              <canvas id="coherenceTrend-{{ stock.id }}"></canvas>
+            </div>
+
+
+            {# ========= 新增 Whale Radar 主力強度雷達圖 ========= #}
+            <h6 class="text-info mt-4 mb-3">🕸 主力強度雷達圖（Whale Strength Radar）</h6>
+            <div class="chart-container-mini">
+              <canvas id="whaleRadar-{{ stock.id }}"></canvas>
+            </div>
+
+
+            {# ========= Top6 大戶詳細資訊 ========= #}
+            <h6 class="text-info mt-5 mb-3">📍 Top 6 大戶各別動態清單</h6>
+
+            <div class="table-responsive">
               {% set color_map = {} %}
-              {% if stock.whale_data is defined and stock.whale_data %}
+              {% if stock.whale_data %}
                 {% for w in stock.whale_data %}
                   {% set _ = color_map.update({ (w.name|string): (w.color|string) }) %}
                 {% endfor %}
@@ -380,62 +413,53 @@
                   <tr>
                     <th>券商名稱</th>
                     <th>類型</th>
-                    <th class="text-end">10日累計(張)</th>
-                    <th class="text-end">5日累計(張)</th>
-                    <th class="text-end">1日動作(張)</th>
+                    <th class="text-end">10日累計</th>
+                    <th class="text-end">5日累計</th>
+                    <th class="text-end">1日動作</th>
                     <th class="text-end">成本估算</th>
                     <th class="text-end">縣市</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {% if stock.top6_details is defined and stock.top6_details %}
+                  {% if stock.top6_details %}
                     {% for boss in stock.top6_details %}
                       {% set c = color_map.get(boss.broker_name|string, '#888') %}
                       <tr>
                         <td>
-                          <span class="broker-chip" style="
-                            display:inline-block;width:11px;height:11px;border-radius:50%;
-                            background: {{ boss.color if boss.color is defined else c }};
-                            margin-right:6px;"></span>
+                          <span class="broker-chip" style="background: {{ boss.color if boss.color else c }};"></span>
                           <code>{{ boss.broker_id }}</code>
-                          <span style="color: {{ boss.color if boss.color is defined else c }}; font-weight:700;">
+                          <span style="color: {{ boss.color if boss.color else c }}; font-weight:700;">
                             {{ boss.broker_name }}
                           </span>
                         </td>
 
                         <td>
-                          {% if boss.broker_org_type is defined and boss.broker_org_type == 'foreign' %}
-                            <span class="badge" style="background:#7f8c8d;color:#fff;">外資券商</span>
+                          {% if boss.broker_org_type == 'foreign' %}
+                            <span class="badge" style="background:#7f8c8d;">外資券商</span>
                           {% else %}
-                            <span class="badge" style="background:#2c3e50;color:#fff;">本土券商</span>
+                            <span class="badge" style="background:#2c3e50;">本土券商</span>
                           {% endif %}
 
-                          {% if boss.is_proprietary is defined and boss.is_proprietary == 'Y' %}
-                            <span class="badge" style="background:#8e44ad;color:#fff;">自營</span>
+                          {% if boss.is_proprietary == 'Y' %}
+                            <span class="badge" style="background:#8e44ad;">自營</span>
                           {% endif %}
 
-                          {% if boss.seat_type is defined and boss.seat_type == 'aggregate' %}
-                            <span class="badge" style="background:#16a085;color:#fff;">彙總席</span>
-                          {% elif boss.seat_type is defined and boss.seat_type == 'hq' %}
-                            <span class="badge" style="background:#34495e;color:#fff;">總部</span>
+                          {% if boss.seat_type == 'aggregate' %}
+                            <span class="badge" style="background:#16a085;">彙總席</span>
+                          {% elif boss.seat_type == 'hq' %}
+                            <span class="badge" style="background:#34495e;">總部</span>
                           {% endif %}
                         </td>
 
-                        <td class="text-end {{ 'buy-row' if boss.net_10d > 0 else 'sell-row' }}">
-                          {{ boss.net_10d | round(0) | int }}
-                        </td>
-                        <td class="text-end {{ 'buy-row' if boss.net_5d > 0 else 'sell-row' }}">
-                          {{ boss.net_5d | round(0) | int }}
-                        </td>
-                        <td class="text-end {{ 'buy-row' if boss.net_1d > 0 else 'sell-row' }}">
-                          {{ boss.net_1d | round(0) | int }}
-                        </td>
+                        <td class="text-end {{ 'buy-row' if boss.net_10d > 0 else 'sell-row' }}">{{ boss.net_10d }}</td>
+                        <td class="text-end {{ 'buy-row' if boss.net_5d > 0 else 'sell-row' }}">{{ boss.net_5d }}</td>
+                        <td class="text-end {{ 'buy-row' if boss.net_1d > 0 else 'sell-row' }}">{{ boss.net_1d }}</td>
                         <td class="text-end text-warning">NT$ {{ boss.avg_price }}</td>
-                        <td class="text-end text-secondary">{{ boss.city if boss.city is defined and boss.city else '-' }}</td>
+                        <td class="text-end text-secondary">{{ boss.city if boss.city else '-' }}</td>
                       </tr>
                     {% endfor %}
                   {% else %}
-                    <tr><td colspan="7" class="text-center text-muted">暫無詳細大戶數據（請先執行分析腳本）</td></tr>
+                    <tr><td colspan="7" class="text-center text-muted">暫無大戶數據</td></tr>
                   {% endif %}
                 </tbody>
               </table>
@@ -444,16 +468,23 @@
           </div>
         </div>
       </div>
-
       {# --------------------- Chart.js Render --------------------- #}
       <script>
         (function () {
           // ========= 0) data =========
           const sig = {{ (stock.signals if stock.signals is defined else {}) | tojson | safe }};
 
+          // helper: destroy chart safely
+          function destroyIfExists(store, key) {
+            if (store && store[key]) {
+              try { store[key].destroy(); } catch(e) {}
+              delete store[key];
+            }
+          }
+
           // ========= 1) Top6 trajectory chart =========
-          const canvas = document.getElementById('whaleChart-{{ stock.id }}');
-          if (canvas) {
+          const whaleCanvas = document.getElementById('whaleChart-{{ stock.id }}');
+          if (whaleCanvas) {
             const labels = {{ (stock.history_labels if stock.history_labels is defined else []) | tojson | safe }};
             const whaleData = {{ (stock.whale_data if stock.whale_data is defined else []) | tojson | safe }};
             const totalValues = {{ (stock.total_whale_values if stock.total_whale_values is defined else []) | tojson | safe }};
@@ -484,9 +515,9 @@
               pointRadius: 0
             });
 
-            const ctx = canvas.getContext('2d');
+            const ctx = whaleCanvas.getContext('2d');
             if (window.__whaleCharts === undefined) window.__whaleCharts = {};
-            if (window.__whaleCharts['{{ stock.id }}']) window.__whaleCharts['{{ stock.id }}'].destroy();
+            destroyIfExists(window.__whaleCharts, '{{ stock.id }}');
 
             window.__whaleCharts['{{ stock.id }}'] = new Chart(ctx, {
               type: 'line',
@@ -496,9 +527,9 @@
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
-                  y: { position: 'left', grid: { color: '#333' }, ticks: { color: '#aaa' } },
-                  y2:{ position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#aaa' } },
-                  x: { grid: { color: '#333' }, ticks: { color: '#aaa' } }
+                  y:  { position: 'left',  grid: { color: '#333' }, ticks: { color: '#aaa' } },
+                  y2: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#aaa' } },
+                  x:  { grid: { color: '#333' }, ticks: { color: '#aaa' } }
                 },
                 plugins: {
                   legend: { position: 'bottom', labels: { color: '#eee', boxWidth: 12 } },
@@ -516,29 +547,21 @@
             const buyList = (sig && sig.top_buy_15) ? [...sig.top_buy_15] : [];
             const sellList = (sig && sig.top_sell_15) ? [...sig.top_sell_15] : [];
 
-            // 1) 排序/截斷
             buyList.sort((a,b) => Number(b.net_lot ?? 0) - Number(a.net_lot ?? 0));
-            sellList.sort((a,b) => Number(a.net_lot ?? 0) - Number(b.net_lot ?? 0)); // 更負的排前面
+            sellList.sort((a,b) => Number(a.net_lot ?? 0) - Number(b.net_lot ?? 0));
 
             const N = 15;
             const buyTop = buyList.slice(0, N);
             const sellTop = sellList.slice(0, N);
 
-            // 2) 組 labels 與 values（右圖全部用正值顯示賣超量級，左圖用正值但 x 反轉）
             const buyLabels = buyTop.map(r => `${(r.broker_id ?? '')} ${(r.broker_name ?? '')}`.trim());
             const buyVals   = buyTop.map(r => Math.max(0, Number(r.net_lot ?? 0)));
 
             const sellLabels = sellTop.map(r => `${(r.broker_id ?? '')} ${(r.broker_name ?? '')}`.trim());
             const sellVals   = sellTop.map(r => Math.abs(Math.min(0, Number(r.net_lot ?? 0))));
 
-            // 3) 左右同尺度（對齊 0 中線的關鍵）
-            const maxAbs = Math.max(
-              1,
-              ...buyVals,
-              ...sellVals
-            );
+            const maxAbs = Math.max(1, ...buyVals, ...sellVals);
 
-            // 4) 共用 options factory
             const baseOptions = (side) => ({
               indexAxis: 'y',
               responsive: true,
@@ -548,41 +571,27 @@
                 x: {
                   min: 0,
                   max: maxAbs,
-                  reverse: (side === 'left'),   // 左邊反轉，條形往左長（視覺）
+                  reverse: (side === 'left'),
                   grid: { color: '#2b2b2b' },
                   ticks: { color: '#9a9a9a' }
                 },
                 y: {
                   position: (side === 'right') ? 'right' : 'left',
                   grid: { display: false },
-                  ticks: {
-                    color: '#d0d0d0',
-                    mirror: false,
-                    padding: 6,
-                    callback: function(value) {
-                      const label = this.getLabelForValue(value) || '';
-                      // 讓靠近中線的文字更像 WantGoo：左圖靠右、右圖靠左
-                      return label;
-                    }
-                  }
+                  ticks: { color: '#d0d0d0', padding: 6 }
                 }
               },
               plugins: {
                 legend: { display: false },
-                tooltip: {
-                  callbacks: {
-                    label: (ctx) => `${ctx.parsed.x} 張`
-                  }
-                }
+                tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.x} 張` } }
               }
             });
 
-            // 5) 建圖（避免重複疊圖）
             if (window.__rankTornado === undefined) window.__rankTornado = {};
             const key = '{{ stock.id }}';
 
-            if (window.__rankTornado[key]?.buy) window.__rankTornado[key].buy.destroy();
-            if (window.__rankTornado[key]?.sell) window.__rankTornado[key].sell.destroy();
+            if (window.__rankTornado[key]?.buy)  { try { window.__rankTornado[key].buy.destroy(); } catch(e) {} }
+            if (window.__rankTornado[key]?.sell) { try { window.__rankTornado[key].sell.destroy(); } catch(e) {} }
 
             const buyCtx = buyCanvas.getContext('2d');
             const sellCtx = sellCanvas.getContext('2d');
@@ -594,7 +603,7 @@
                 datasets: [{
                   label: '買超(張)',
                   data: buyVals,
-                  backgroundColor: '#9bd23c', // WantGoo 類似綠；你也可改回 #ff4444
+                  backgroundColor: '#9bd23c',
                   borderWidth: 0,
                   barThickness: 14
                 }]
@@ -609,7 +618,7 @@
                 datasets: [{
                   label: '賣超(張)',
                   data: sellVals,
-                  backgroundColor: '#e06a6a', // WantGoo 類似紅
+                  backgroundColor: '#e06a6a',
                   borderWidth: 0,
                   barThickness: 14
                 }]
@@ -620,8 +629,7 @@
             window.__rankTornado[key] = { buy: buyChart, sell: sellChart };
           }
 
-
-          // ========= 3) Breadth trend chart (requires series from scraper) =========
+          // ========= 3) Breadth trend chart =========
           const btCanvas = document.getElementById('breadthTrend-{{ stock.id }}');
           if (btCanvas) {
             const labels20 = (sig && sig.labels_20d) ? sig.labels_20d : [];
@@ -631,7 +639,7 @@
 
             const tctx = btCanvas.getContext('2d');
             if (window.__breadthCharts === undefined) window.__breadthCharts = {};
-            if (window.__breadthCharts['{{ stock.id }}']) window.__breadthCharts['{{ stock.id }}'].destroy();
+            destroyIfExists(window.__breadthCharts, '{{ stock.id }}');
 
             window.__breadthCharts['{{ stock.id }}'] = new Chart(tctx, {
               type: 'line',
@@ -655,6 +663,133 @@
                   legend: { position: 'bottom', labels: { color: '#eee', boxWidth: 12 } },
                   tooltip: { mode: 'index', intersect: false }
                 }
+              }
+            });
+          }
+
+          // ========= 4) Cost Zone chart =========
+          const czCanvas = document.getElementById('costZoneChart-{{ stock.id }}');
+          if (czCanvas) {
+            const ctxCZ = czCanvas.getContext('2d');
+
+            const enhanced = (sig && sig.enhanced) ? sig.enhanced : {};
+            const costLow = Number(enhanced.cost_low ?? 0);
+            const costHigh = Number(enhanced.cost_high ?? 0);
+            const closeLast = Number(enhanced.close_last ?? 0);
+
+            const zoneWidth = Math.max(0, costHigh - costLow);
+            const closeRel = Math.max(0, closeLast - costLow);
+
+            if (window.__costZoneCharts === undefined) window.__costZoneCharts = {};
+            destroyIfExists(window.__costZoneCharts, '{{ stock.id }}');
+
+            window.__costZoneCharts['{{ stock.id }}'] = new Chart(ctxCZ, {
+              type: 'bar',
+              data: {
+                labels: ['Cost Zone'],
+                datasets: [
+                  { label: '主力成本帶', data: [zoneWidth], backgroundColor: '#34495e', borderWidth: 0 },
+                  { label: '今日收盤(相對)', data: [closeRel], backgroundColor: '#f1c40f', borderWidth: 0 }
+                ]
+              },
+              options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: { ticks: { color: '#aaa' }, grid: { color: '#222' } },
+                  y: { ticks: { color: '#eee' }, grid: { display: false } }
+                },
+                plugins: { legend: { position: 'bottom', labels: { color: '#eee' } } }
+              }
+            });
+          }
+
+          // ========= 5) Coherence Trend chart =========
+          const cohCanvas = document.getElementById('coherenceTrend-{{ stock.id }}');
+          if (cohCanvas) {
+            const ctxCT = cohCanvas.getContext('2d');
+
+            const labels20 = (sig && sig.labels_20d) ? sig.labels_20d : [];
+            const buySeries = (sig && sig.buy_count_series_20d) ? sig.buy_count_series_20d : [];
+            const sellSeries = (sig && sig.sell_count_series_20d) ? sig.sell_count_series_20d : [];
+            const enhanced = (sig && sig.enhanced) ? sig.enhanced : {};
+            const cohToday = Number(enhanced.coherence_today ?? 0);
+
+            // show today's coherence only on last point (marker)
+            const cohSeries = labels20.map((_, idx) => idx === labels20.length - 1 ? cohToday : null);
+
+            if (window.__cohCharts === undefined) window.__cohCharts = {};
+            destroyIfExists(window.__cohCharts, '{{ stock.id }}');
+
+            window.__cohCharts['{{ stock.id }}'] = new Chart(ctxCT, {
+              type: 'line',
+              data: {
+                labels: labels20,
+                datasets: [
+                  { label: '買超家數', data: buySeries, borderColor: '#ff4444', borderWidth: 2, tension: 0.2, pointRadius: 2 },
+                  { label: '賣超家數', data: sellSeries, borderColor: '#66b2ff', borderWidth: 2, tension: 0.2, pointRadius: 2 },
+                  { label: 'Coherence(今日)', data: cohSeries, borderColor: '#f1c40f', borderWidth: 3, tension: 0, pointRadius: 5 }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                  x: { ticks: { color: '#aaa' }, grid: { color: '#333' } },
+                  y: { ticks: { color: '#aaa' }, grid: { color: '#333' } }
+                },
+                plugins: { legend: { position: 'bottom', labels: { color: '#eee' } } }
+              }
+            });
+          }
+
+          // ========= 6) Whale Radar chart =========
+          const radarCanvas = document.getElementById('whaleRadar-{{ stock.id }}');
+          if (radarCanvas) {
+            const ctxR = radarCanvas.getContext('2d');
+
+            const enhanced = (sig && sig.enhanced) ? sig.enhanced : {};
+            const tp = (sig && sig.turning_points) ? sig.turning_points : {};
+
+            // Normalize values into 0~3-ish range for better radar readability
+            const v_streak = Number(enhanced.streak_strength ?? 0);  // already small
+            const v_coh = Number(enhanced.coherence_today ?? 0);     // 0~3 capped
+            const v_spike = Number(tp.abnormal_buy_spike ?? 0) * 3;  // 0 or 3
+            const v_def = Number(tp.cost_zone_defended ?? 0) * 3;    // 0 or 3
+            const v_tv = (Number(sig.tv_score ?? 0) / 5) * 3;        // scale to 0~3
+            const v_c20 = (Number(sig.concentration_20d ?? 0) / 100) * 3; // 0~3
+
+            if (window.__radarCharts === undefined) window.__radarCharts = {};
+            destroyIfExists(window.__radarCharts, '{{ stock.id }}');
+
+            window.__radarCharts['{{ stock.id }}'] = new Chart(ctxR, {
+              type: 'radar',
+              data: {
+                labels: ['連買強度', '群聚買超', '爆量買超', '成本帶防守', 'TV分數', '集中度20日'],
+                datasets: [{
+                  label: '主力強度',
+                  data: [v_streak, v_coh, v_spike, v_def, v_tv, v_c20],
+                  borderColor: 'rgba(241,196,15,1)',
+                  backgroundColor: 'rgba(241,196,15,0.25)',
+                  borderWidth: 2,
+                  pointRadius: 3
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  r: {
+                    min: 0,
+                    max: 3,
+                    ticks: { color: '#aaa' },
+                    pointLabels: { color: '#eee' },
+                    grid: { color: '#555' }
+                  }
+                },
+                plugins: { legend: { position: 'bottom', labels: { color: '#eee' } } }
               }
             });
           }

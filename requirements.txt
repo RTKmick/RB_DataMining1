@@ -1,7 +1,27 @@
-shioaji
-flask
+# 基礎 HTTP / JSON / 環境變數
+requests
 python-dotenv
-python-telegram-bot
-line-bot-sdk
+urllib3
+
+# 數據分析
+pandas
+numpy
+
+# 日期工具（pandas 已含，但保留）
+python-dateutil
+
+# 後端工具（你原本使用）
+flask
 flask-cors
 gunicorn
+
+# 金融 API
+shioaji
+
+# Messaging
+python-telegram-bot
+line-bot-sdk
+
+# (可選) 用於回測/技術分析若你之後會需要
+ta
+
