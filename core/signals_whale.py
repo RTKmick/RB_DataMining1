@@ -237,8 +237,35 @@ def compute_master_trend(signals: dict) -> dict:
     )
     score = int(round(clamp(score, 0.0, 100.0)))
 
+    # -----------------------------------------------------------------
+    # === Radar components (0~100) ===  # strength: already 0~1
+    rad_strength = int(round(clamp(strength, 0.0, 1.0) * 100))
+
+    # direction/breadth/div: -1~1 -> 0~100
+    rad_direction = int(round(clamp((direction + 1.0) / 2.0, 0.0, 1.0) * 100))
+    rad_breadth   = int(round(clamp((breadth   + 1.0) / 2.0, 0.0, 1.0) * 100))
+    rad_align     = int(round(clamp((div       + 1.0) / 2.0, 0.0, 1.0) * 100))
+
+    # acceleration: short-term vs mid-term
+    acc_raw = clamp(dir5 - dir20, -1.0, 1.0)  # dir5/dir20 在上面已算
+    rad_acc = int(round(((acc_raw + 1.0) / 2.0) * 100))
+
+    radar = {
+        "labels": ["集中度", "淨買方向", "買盤廣度", "外本協同", "短期加速"],
+        "values": [rad_strength, rad_direction, rad_breadth, rad_align, rad_acc],
+        # 可選：保留原始值方便 debug
+        "raw": {
+            "strength": strength,
+            "direction": direction,
+            "breadth": breadth,
+            "align": div,
+            "acc": acc_raw,
+        }
+    }
+    # -----------------------------------------------------------------
+
     if c20 < 4.0 and c5 < 4.0:
-        return {"score": score, "trend": "觀察中", "tags": ["集中度偏低"]}
+        return {"score": score, "trend": "觀察中", "tags": ["集中度偏低"], "whale_radar": radar}
 
     tags = []
     if div > 0.3:
@@ -272,4 +299,5 @@ def compute_master_trend(signals: dict) -> dict:
         trend = "震盪"
         tags.append("方向拉扯")
 
-    return {"score": score, "trend": trend, "tags": tags}
+    return {"score": score, "trend": trend, "tags": tags, "whale_radar": radar}
+

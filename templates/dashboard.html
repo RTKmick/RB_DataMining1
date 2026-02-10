@@ -32,7 +32,7 @@
 
     .chart-container { position: relative; height: 350px; width: 100%; margin-bottom: 20px; }
     .chart-container-bar { position: relative; height: 520px; width: 100%; margin-bottom: 20px; }
-    .chart-container-mini { position: relative; height: 280px; width: 100%; margin-bottom: 20px; }
+    .chart-container-mini { position: relative; height: 340px; width: 100%; margin-bottom: 20px; }
 
     .metric-card { text-align: center; padding: 15px; border-radius: 8px; background: #252525; }
     .metric-value { font-size: 1.8rem; font-weight: bold; color: #f1c40f; }
@@ -191,8 +191,10 @@
             <div class="chart-container-mini">
               <canvas id="costZoneChart-{{ stock.id }}"></canvas>
             </div>
+
             {# ========= KPI：主力分數 & NetBuy ========= #}
-            <div class="row mb-4">
+            <!-- KPI Row 1：四張卡 -->
+            <div class="row mb-4 g-3">
               <div class="col-md-3">
                 <div class="metric-card">
                   <div class="metric-label">主力得分 (0~100)</div>
@@ -220,8 +222,11 @@
                   <div class="metric-value">{{ sig.netbuy_20d_lot if sig.netbuy_20d_lot is defined else 0 }}</div>
                 </div>
               </div>
+            </div>
 
-              <div class="col-md-3 mt-4">
+            <!-- KPI Row 2：Top15 主力差（單獨一排，避免歪） -->
+            <div class="row mb-4 g-3">
+              <div class="col-md-3">
                 <div class="metric-card">
                   <div class="metric-label">20日 Top15 主力差(張)</div>
                   <div class="metric-value">{{ sig.delta_major_flow_20 if sig.delta_major_flow_20 is defined else 0 }}</div>
@@ -232,6 +237,15 @@
               </div>
             </div>
 
+            <!-- Radar Row：獨立一排 -->
+            <div class="row mb-4">
+              <div class="col-12">
+                <h6 class="text-info mb-3">🕸️ 主力強度雷達圖（Whale Strength Radar）</h6>
+                <div class="chart-container-mini" style="height: 340px;">
+                  <canvas id="whaleRadar-{{ stock.id }}"></canvas>
+                </div>
+              </div>
+            </div>
 
             {# ========= Breadth KPI ========= #}
             <div class="row mb-4">
@@ -388,14 +402,6 @@
             <div class="chart-container-mini">
               <canvas id="coherenceTrend-{{ stock.id }}"></canvas>
             </div>
-
-
-            {# ========= 新增 Whale Radar 主力強度雷達圖 ========= #}
-            <h6 class="text-info mt-4 mb-3">🕸 主力強度雷達圖（Whale Strength Radar）</h6>
-            <div class="chart-container-mini">
-              <canvas id="whaleRadar-{{ stock.id }}"></canvas>
-            </div>
-
 
             {# ========= Top6 大戶詳細資訊 ========= #}
             <h6 class="text-info mt-5 mb-3">📍 Top 6 大戶各別動態清單</h6>
@@ -667,45 +673,106 @@
             });
           }
 
-          // ========= 4) Cost Zone chart =========
+          // ========= 4) Whale Strength Radar =========
+          const wrCanvas = document.getElementById('whaleRadar-{{ stock.id }}');
+          if (wrCanvas) {
+            const radar = (sig && sig.whale_radar) ? sig.whale_radar : {};
+            const labels = radar.labels || ["集中度", "淨買方向", "買盤廣度", "外本協同", "短期加速"];
+            const values = radar.values || [0, 0, 0, 0, 0];
+
+            if (window.__whaleRadarCharts === undefined) window.__whaleRadarCharts = {};
+            destroyIfExists(window.__whaleRadarCharts, '{{ stock.id }}');
+
+            const rctx = wrCanvas.getContext('2d');
+            window.__whaleRadarCharts['{{ stock.id }}'] = new Chart(rctx, {
+              type: 'radar',
+              data: {
+                labels,
+                datasets: [{
+                  label: 'Whale Strength (0~100)',
+                  data: values,
+                  borderColor: '#4aa3ff',
+                  backgroundColor: 'rgba(74,163,255,0.18)',
+                  pointBackgroundColor: '#4aa3ff',
+                  borderWidth: 2,
+                  pointRadius: 3
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { position: 'bottom', labels: { color: '#eee', font: { size: 14 } } },
+                  tooltip: { enabled: true }
+                },
+                scales: {
+                  r: {
+                    min: 0,
+                    max: 100,
+                    ticks: {
+                      color: '#aaa',
+                      backdropColor: 'rgba(0,0,0,0)',
+                      font: { size: 12 }
+                    },
+                    pointLabels: {
+                      color: '#eee',
+                      font: { size: 14 }   // ✅ 放大關鍵：字會看得到
+                    },
+                    grid: { color: '#444' },
+                    angleLines: { color: '#333' }
+                  }
+                }
+              }
+            });
+          }
+
+          // ========= 5) Cost Zone chart =========
           const czCanvas = document.getElementById('costZoneChart-{{ stock.id }}');
           if (czCanvas) {
             const ctxCZ = czCanvas.getContext('2d');
 
             const enhanced = (sig && sig.enhanced) ? sig.enhanced : {};
-            const costLow = Number(enhanced.cost_low ?? 0);
+            const costLow  = Number(enhanced.cost_low  ?? 0);
             const costHigh = Number(enhanced.cost_high ?? 0);
-            const closeLast = Number(enhanced.close_last ?? 0);
+            const closeLast= Number(enhanced.close_last?? 0);
 
-            const zoneWidth = Math.max(0, costHigh - costLow);
-            const closeRel = Math.max(0, closeLast - costLow);
-
-            if (window.__costZoneCharts === undefined) window.__costZoneCharts = {};
-            destroyIfExists(window.__costZoneCharts, '{{ stock.id }}');
-
-            window.__costZoneCharts['{{ stock.id }}'] = new Chart(ctxCZ, {
-              type: 'bar',
-              data: {
-                labels: ['Cost Zone'],
-                datasets: [
-                  { label: '主力成本帶', data: [zoneWidth], backgroundColor: '#34495e', borderWidth: 0 },
-                  { label: '今日收盤(相對)', data: [closeRel], backgroundColor: '#f1c40f', borderWidth: 0 }
-                ]
-              },
-              options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  x: { ticks: { color: '#aaa' }, grid: { color: '#222' } },
-                  y: { ticks: { color: '#eee' }, grid: { display: false } }
-                },
-                plugins: { legend: { position: 'bottom', labels: { color: '#eee' } } }
+            // 沒資料：不 return（避免中止整個 script），改成顯示文字
+            if (!costLow || !costHigh || costHigh <= costLow || !closeLast) {
+              const p = czCanvas.parentElement;
+              if (p) {
+                p.innerHTML = `<div class="text-muted" style="font-size:0.9rem;">Cost Zone 暫無資料（需後端提供 cost_low / cost_high / close_last）</div>`;
               }
-            });
+            } else {
+              const zoneWidth = Math.max(0, costHigh - costLow);
+              const closeRel  = Math.max(0, closeLast - costLow);
+
+              if (window.__costZoneCharts === undefined) window.__costZoneCharts = {};
+              destroyIfExists(window.__costZoneCharts, '{{ stock.id }}');
+
+              window.__costZoneCharts['{{ stock.id }}'] = new Chart(ctxCZ, {
+                type: 'bar',
+                data: {
+                  labels: ['Cost Zone'],
+                  datasets: [
+                    { label: `主力成本帶 (${costLow.toFixed(2)} ~ ${costHigh.toFixed(2)})`, data: [zoneWidth], backgroundColor: '#34495e', borderWidth: 0 },
+                    { label: `今日收盤 (${closeLast.toFixed(2)})`, data: [closeRel], backgroundColor: '#f1c40f', borderWidth: 0 }
+                  ]
+                },
+                options: {
+                  indexAxis: 'y',
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    x: { ticks: { color: '#aaa' }, grid: { color: '#222' } },
+                    y: { ticks: { color: '#eee' }, grid: { display: false } }
+                  },
+                  plugins: { legend: { position: 'bottom', labels: { color: '#eee' } } }
+                }
+              });
+            }
           }
 
-          // ========= 5) Coherence Trend chart =========
+          // ========= 6) Coherence Trend chart =========
           const cohCanvas = document.getElementById('coherenceTrend-{{ stock.id }}');
           if (cohCanvas) {
             const ctxCT = cohCanvas.getContext('2d');
@@ -744,56 +811,7 @@
               }
             });
           }
-
-          // ========= 6) Whale Radar chart =========
-          const radarCanvas = document.getElementById('whaleRadar-{{ stock.id }}');
-          if (radarCanvas) {
-            const ctxR = radarCanvas.getContext('2d');
-
-            const enhanced = (sig && sig.enhanced) ? sig.enhanced : {};
-            const tp = (sig && sig.turning_points) ? sig.turning_points : {};
-
-            // Normalize values into 0~3-ish range for better radar readability
-            const v_streak = Number(enhanced.streak_strength ?? 0);  // already small
-            const v_coh = Number(enhanced.coherence_today ?? 0);     // 0~3 capped
-            const v_spike = Number(tp.abnormal_buy_spike ?? 0) * 3;  // 0 or 3
-            const v_def = Number(tp.cost_zone_defended ?? 0) * 3;    // 0 or 3
-            const v_tv = (Number(sig.tv_score ?? 0) / 5) * 3;        // scale to 0~3
-            const v_c20 = (Number(sig.concentration_20d ?? 0) / 100) * 3; // 0~3
-
-            if (window.__radarCharts === undefined) window.__radarCharts = {};
-            destroyIfExists(window.__radarCharts, '{{ stock.id }}');
-
-            window.__radarCharts['{{ stock.id }}'] = new Chart(ctxR, {
-              type: 'radar',
-              data: {
-                labels: ['連買強度', '群聚買超', '爆量買超', '成本帶防守', 'TV分數', '集中度20日'],
-                datasets: [{
-                  label: '主力強度',
-                  data: [v_streak, v_coh, v_spike, v_def, v_tv, v_c20],
-                  borderColor: 'rgba(241,196,15,1)',
-                  backgroundColor: 'rgba(241,196,15,0.25)',
-                  borderWidth: 2,
-                  pointRadius: 3
-                }]
-              },
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  r: {
-                    min: 0,
-                    max: 3,
-                    ticks: { color: '#aaa' },
-                    pointLabels: { color: '#eee' },
-                    grid: { color: '#555' }
-                  }
-                },
-                plugins: { legend: { position: 'bottom', labels: { color: '#eee' } } }
-              }
-            });
-          }
-        })();
+        })();          
       </script>
 
       {% endfor %}

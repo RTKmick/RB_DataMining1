@@ -75,49 +75,56 @@ def analyze_whale_trajectory(
     # Top6 details
     has_price = "price" in combined.columns
     top6_details = []
+
+    # 先做一次清洗，避免型別/空白造成對不到
+    combined["broker_id"] = combined["broker_id"].astype(str).str.strip()
+
+    # 確保 streaks10 一定是 dict（避免 None / 其他型別）
+    if not isinstance(streaks10, dict):
+        streaks10 = {}
+
     for _, r in top6.iterrows():
-        bid = str(r["broker_id"])
-        bname = str(r["broker_name"])
+        bid = str(r.get("broker_id", "")).strip()
+        if not bid:
+            continue
+
+        bname = str(r.get("broker_name", "")).strip()
+
+        # streaks（用 bid 查）
+        st = streaks10.get(bid, {}) or {}
+        sb = int(st.get("streak_buy", 0) or 0)
+        ss = int(st.get("streak_sell", 0) or 0)
+
         bdata = combined[combined["broker_id"] == bid]
 
-        n10d = float(r["net_buy"]) / 1000.0
+        n10d = float(r.get("net_buy", 0) or 0) / 1000.0
         n5d = float(bdata[bdata["date"].isin(date_5d)]["net"].sum()) / 1000.0
         n1d = float(bdata[bdata["date"] == last_1d]["net"].sum()) / 1000.0
 
         avg_p = 0.0
-        if has_price:
+        if has_price and not bdata.empty:
             buy_only = bdata[bdata["buy"] > 0]
             if not buy_only.empty and float(buy_only["buy"].sum()) > 0:
                 avg_p = float((buy_only["buy"] * buy_only["price"]).sum() / buy_only["buy"].sum())
 
-        meta = broker_map.get(bid, {})
+        meta = broker_map.get(bid, {}) or {}
+        print(f"🔎 TOP6 bid={bid} name={bname} in_broker_map={bool(meta)} meta_keys={list(meta.keys())[:6]}")
 
-    # 先安全取得 streak（避免 KeyError）
-    sb = 0
-    ss = 0
-    try:
-        sb = int(r.get("streak_buy", 0) or 0)
-        ss = int(r.get("streak_sell", 0) or 0)
-    except Exception:
-        sb = 0
-        ss = 0
+        top6_details.append({
+            "broker_id": bid,
+            "broker_name": bname,
+            "net_10d": round(n10d, 1),
+            "net_5d": round(n5d, 1),
+            "net_1d": round(n1d, 1),
+            "avg_price": round(avg_p, 2),
+            "city": meta.get("city", "") or "",
+            "broker_org_type": meta.get("broker_org_type", "unknown") or "unknown",
+            "is_proprietary": meta.get("is_proprietary", "") or "",
+            "seat_type": meta.get("seat_type", "") or "",
+            "streak_buy": sb,
+            "streak_sell": ss,
+        })
 
-    top6_details.append({
-        "broker_id": bid,
-        "broker_name": bname,
-        "net_10d": round(n10d, 1),
-        "net_5d": round(n5d, 1),
-        "net_1d": round(n1d, 1),
-        "avg_price": round(avg_p, 2),
-        "city": meta.get("city", ""),
-        "broker_org_type": meta.get("broker_org_type", "unknown") or "unknown",
-        "is_proprietary": meta.get("is_proprietary", ""),
-        "seat_type": meta.get("seat_type", ""),
-
-        # ====== 新增（避免 KeyError）======
-        "streak_buy": sb,
-        "streak_sell": ss,
-    })
 
     # Top6 軌跡矩陣（累積 net）
     whale_detail = df_10d[df_10d["broker_id"].isin(top6_ids)].copy()
@@ -175,6 +182,14 @@ def analyze_whale_trajectory(
 
         **breadth_series_pack,
     }
+
+    import math
+
+    def _clamp(x, lo, hi):
+        return max(lo, min(hi, x))
+
+    def _tanh_0_100(x):# x=0 -> 50；正向上升 -> 越接近100；負向 -> 越接近0
+        return round(50.0 + 50.0 * math.tanh(x), 1)
 
     # === A. ΔMajorFlow20：買方 Top15 張數 - 賣方 Top15 張數 ===
     buy_sum_20 = 0.0
@@ -240,7 +255,7 @@ def analyze_whale_trajectory(
     buy_cnt_today = int((g_today > 0).sum())
 
     # 過去 20 日平均買超家數
-    g_all = df_20d.groupby("date").apply(lambda d: (d.groupby("broker_id")["net"].sum() > 0).sum())
+    g_all = df_20d.groupby("date", group_keys=False).apply(lambda d: (d.groupby("broker_id")["net"].sum() > 0).sum())
     avg_buy_cnt = float(g_all.mean()) if len(g_all) > 0 else 1.0
 
     coherence = buy_cnt_today / avg_buy_cnt if avg_buy_cnt > 0 else 0
@@ -251,6 +266,51 @@ def analyze_whale_trajectory(
     enhanced["buy_cnt_today"] = buy_cnt_today
     enhanced["avg_buy_cnt_20d"] = round(avg_buy_cnt, 1)
     # ----------------------------------------------------------
+
+    # ========= Whale Radar (0~100) =========
+    c20_val = float(signals.get("concentration_20d", 0) or 0)
+    c20_score = round(_clamp(c20_val, 0, 100), 1)
+
+    net1 = float(signals.get("netbuy_1d_lot", 0) or 0)
+    net5 = float(signals.get("netbuy_5d_lot", 0) or 0)
+    net20 = float(signals.get("netbuy_20d_lot", 0) or 0)
+
+    # 2) 淨買方向：用 20D 尺度做 normalize，避免量級差
+    scale = max(10.0, abs(net20) / 4.0)   # 你可調：/3 /5 都行
+    net_dir_score = _tanh_0_100(net5 / scale)
+
+    # 3) 買盤廣度：breadth_ratio_5d (0~1) -> 0~100
+    br5 = float(signals.get("breadth_ratio_5d", 0) or 0)
+    breadth_score = round(_clamp(br5, 0, 1) * 100.0, 1)
+
+    # 4) 外本協同：同向加分、不同向扣分，並以幅度做加權
+    f5 = float(signals.get("foreign_net_5d", 0) or 0)
+    l5 = float(signals.get("local_net_5d", 0) or 0)
+    same_sign = (f5 == 0 and l5 == 0) or (f5 > 0 and l5 > 0) or (f5 < 0 and l5 < 0)
+
+    mag = abs(f5) + abs(l5)
+    mag_score = _clamp(mag / max(1.0, mag + 20000.0), 0, 1)  # 這個 20000 可調：越小越敏感
+    base = 65.0 if same_sign else 35.0
+    align_score = round(_clamp(base + 35.0 * mag_score, 0, 100), 1)
+
+    # 5) 短期加速：1D vs 5D日均（避免 5D=0 爆炸）
+    avg5 = net5 / 5.0
+    den = max(5.0, abs(avg5))  # 保底
+    acc_score = _tanh_0_100(net1 / den)
+
+    signals["whale_radar"] = {
+        "labels": ["集中度", "淨買方向", "買盤廣度", "外本協同", "短期加速"],
+        "values": [c20_score, net_dir_score, breadth_score, align_score, acc_score],
+        "debug": {
+            "c20": c20_val,
+            "net1": net1, "net5": net5, "net20": net20, "scale": scale,
+            "breadth_ratio_5d": br5,
+            "foreign_5d": f5, "local_5d": l5, "same_sign": int(same_sign),
+            "avg5": avg5, "den": den
+        }
+    }
+    print("🔎 whale_radar(pipeline)=", signals["whale_radar"])
+
     # === C2: 主力成本帶 Range + 乖離率 ===
     avg_prices = [float(r["avg_price"]) for r in top6_details if r["avg_price"] > 0]
     if avg_prices:
@@ -319,6 +379,20 @@ def analyze_whale_trajectory(
     signals["score"] = float(trend_pack.get("score", 0) or 0)
     signals["trend"] = trend_pack.get("trend", "")
     signals["tags"] = trend_pack.get("tags", [])
+    # NEW: radar pack
+    signals["whale_radar"] = trend_pack.get("whale_radar", {})
+
+    # ---------------------------------
+    def norm_pct(x):
+        try:
+            v = float(x or 0)
+        except Exception:
+            return 0.0
+        # 若 v <= 1，推定是 0~1，轉成 0~100
+        if 0 <= v <= 1:
+            v *= 100.0
+        return max(0.0, min(100.0, v))
+    # ---------------------------------
 
     # Aggregation（final_score / grade / weights）
     signals.update(compute_final_pack(signals, cfg))
