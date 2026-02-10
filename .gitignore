@@ -1,4 +1,14 @@
-venv/
 __pycache__/
 *.pyc
 .env
+
+# 忽略虛擬環境資料夾
+venv/
+.venv/
+
+# 忽略 Python 快取
+__pycache__/
+*.pyc
+
+# 忽略暫存資料與記錄檔
+*.log
