@@ -1,10 +1,17 @@
-# geocode_broker_excel.py
-# Read:  C:\ngrok\RB_DataMining\rawdata\broker_dimensions_master_V2.xlsx (sheet: broker_master_enriched)
-# Input: column F = address
-# Output: write Latitude to H, Longitude to I
-# Save as: broker_dimensions_master_V3.xlsx (same folder unless you change OUT_PATH)
+# geocode_tse_company_csv.py
+# Input : TSE_Company_V1.csv  (address in column D)
+# Output: TSE_Company_V2.csv  (Latitude in H, Longitude in I)
+#
+# API Key: load from .env at C:\ngrok\RB_DataMining\.env (GOOGLE_MAPS_API_KEY=xxxx)
+#
+# Install:
+#   pip install requests python-dotenv
+#
+# Run:
+#   python geocode_tse_company_csv.py
 
 import os
+import csv
 import json
 import time
 import argparse
@@ -12,19 +19,15 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
 
 import requests
-from openpyxl import load_workbook
-
+from dotenv import load_dotenv
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+DEFAULT_ENV_PATH = r"C:\ngrok\RB_DataMining\.env"
 
 
-def geocode_google(address: str, api_key: str, session: requests.Session, region: str = "tw", language: str = "zh-TW") -> Dict[str, Any]:
-    params = {
-        "address": address,
-        "key": api_key,
-        "region": region,
-        "language": language,
-    }
+def geocode_google(address: str, api_key: str, session: requests.Session,
+                   region: str = "tw", language: str = "zh-TW") -> Dict[str, Any]:
+    params = {"address": address, "key": api_key, "region": region, "language": language}
     r = session.get(GEOCODE_URL, params=params, timeout=20)
     r.raise_for_status()
     return r.json()
@@ -55,78 +58,96 @@ def normalize_addr(s: str) -> str:
     return " ".join((s or "").strip().split())
 
 
+def ensure_len(row: list, n: int) -> list:
+    if len(row) < n:
+        row.extend([""] * (n - len(row)))
+    return row
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--in", dest="in_path",
-                        default=r"C:\ngrok\RB_DataMining\rawdata\broker_dimensions_master_V2.xlsx")
-    parser.add_argument("--out", dest="out_path", default="")
-    parser.add_argument("--sheet", default="broker_master_enriched")
-    parser.add_argument("--api_key", default="", help="Google Geocoding API key (or set env GOOGLE_MAPS_API_KEY)")
-    parser.add_argument("--sleep", type=float, default=0.12, help="Seconds to sleep between requests (avoid rate issues)")
+    parser.add_argument("--in", dest="in_path", default=r"C:\ngrok\RB_DataMining\rawdata\TSE_Company_V1.csv")
+    parser.add_argument("--out", dest="out_path", default=r"C:\ngrok\RB_DataMining\rawdata\TSE_Company_V2.csv")
+    parser.add_argument(
+        "--env",
+        dest="env_path",
+        default=DEFAULT_ENV_PATH,
+        help=r"Path to .env (default: C:\ngrok\RB_DataMining\.env)"
+    )
+    parser.add_argument("--sleep", type=float, default=0.12)
     parser.add_argument("--max_retries", type=int, default=5)
     parser.add_argument("--retry_backoff", type=float, default=1.6)
+    parser.add_argument("--force", action="store_true", help="Force re-geocode even if H/I already filled")
     args = parser.parse_args()
 
-    api_key = args.api_key or os.getenv("GOOGLE_MAPS_API_KEY") or "AIzaSyCSZEA-ruY_Ks5iruFShgPZBbABrrp864o"
+    load_dotenv(dotenv_path=args.env_path, override=False)
 
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     if not api_key:
-        raise SystemExit("Missing API key. Provide --api_key or set GOOGLE_MAPS_API_KEY environment variable.")
+        raise SystemExit(f"Missing GOOGLE_MAPS_API_KEY. Put it in {args.env_path} or set env var.")
 
     in_path = Path(args.in_path)
     if not in_path.exists():
         raise SystemExit(f"Input file not found: {in_path}")
 
-    out_path = Path(args.out_path) if args.out_path else in_path.with_name("broker_dimensions_master_V3.xlsx")
+    out_path = Path(args.out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     cache_path = out_path.with_suffix(".geocode_cache.json")
     cache = load_cache(cache_path)
 
-    wb = load_workbook(in_path)
-    if args.sheet not in wb.sheetnames:
-        raise SystemExit(f"Sheet not found: {args.sheet}. Available: {wb.sheetnames}")
-    ws = wb[args.sheet]
-
-    # Columns: F=6 address, H=8 lat, I=9 lng
-    COL_ADDR = 6
-    COL_LAT = 8
-    COL_LNG = 9
+    # D=4 address, H=8 lat, I=9 lng (1-based)
+    IDX_ADDR = 4 - 1
+    IDX_LAT = 8 - 1
+    IDX_LNG = 9 - 1
 
     session = requests.Session()
-
-    # Iterate rows: assumes header in row 1. If not, change start_row=1.
-    start_row = 2
-    max_row = ws.max_row
 
     updated = 0
     skipped = 0
     failed = 0
 
-    for r in range(start_row, max_row + 1):
-        addr_cell = ws.cell(row=r, column=COL_ADDR)
-        raw_addr = addr_cell.value
+    with in_path.open("r", encoding="utf-8-sig", newline="") as f_in:
+        rows = list(csv.reader(f_in))
 
+    if not rows:
+        raise SystemExit("Input CSV is empty.")
+
+    header = ensure_len(rows[0], 9)
+    data_rows = rows[1:]
+
+    if header[IDX_LAT] in (None, ""):
+        header[IDX_LAT] = "Latitude"
+    if header[IDX_LNG] in (None, ""):
+        header[IDX_LNG] = "Longitude"
+
+    out_rows = [header]
+
+    for row in data_rows:
+        row = ensure_len(row, 9)
+
+        raw_addr = row[IDX_ADDR] if IDX_ADDR < len(row) else ""
         if raw_addr is None or str(raw_addr).strip() == "":
             skipped += 1
+            out_rows.append(row)
             continue
 
         addr = normalize_addr(str(raw_addr))
 
-        lat_cell = ws.cell(row=r, column=COL_LAT)
-        lng_cell = ws.cell(row=r, column=COL_LNG)
-
-        # If already has both lat/lng, skip
-        if lat_cell.value not in (None, "") and lng_cell.value not in (None, ""):
+        has_lat = str(row[IDX_LAT]).strip() != ""
+        has_lng = str(row[IDX_LNG]).strip() != ""
+        if (has_lat and has_lng) and (not args.force):
             skipped += 1
+            out_rows.append(row)
             continue
 
-        # Cache hit
-        if addr in cache and cache[addr].get("status") == "OK":
-            lat_cell.value = cache[addr]["lat"]
-            lng_cell.value = cache[addr]["lng"]
+        if addr in cache and cache[addr].get("status") == "OK" and (not args.force):
+            row[IDX_LAT] = cache[addr]["lat"]
+            row[IDX_LNG] = cache[addr]["lng"]
             updated += 1
+            out_rows.append(row)
             continue
 
-        # Call API with retries
         attempt = 0
         while True:
             attempt += 1
@@ -142,17 +163,14 @@ def main():
                 }
 
                 if status == "OK" and lat is not None and lng is not None:
-                    lat_cell.value = lat
-                    lng_cell.value = lng
+                    row[IDX_LAT] = lat
+                    row[IDX_LNG] = lng
                     updated += 1
                 else:
-                    # keep blank for review
                     failed += 1
-
                 break
 
             except requests.HTTPError as e:
-                # Handle quota / transient
                 if attempt >= args.max_retries:
                     cache[addr] = {"status": "HTTP_ERROR", "error": str(e), "timestamp": time.time()}
                     failed += 1
@@ -166,15 +184,16 @@ def main():
                     break
                 time.sleep(args.retry_backoff ** attempt)
 
-        # Save cache periodically
         if (updated + failed) % 50 == 0:
             save_cache(cache_path, cache)
 
         time.sleep(args.sleep)
+        out_rows.append(row)
 
-    # Final save
     save_cache(cache_path, cache)
-    wb.save(out_path)
+
+    with out_path.open("w", encoding="utf-8-sig", newline="") as f_out:
+        csv.writer(f_out).writerows(out_rows)
 
     print(f"Done. Saved: {out_path}")
     print(f"Updated: {updated}, Skipped: {skipped}, Failed: {failed}")

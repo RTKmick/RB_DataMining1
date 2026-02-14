@@ -159,3 +159,6 @@ scraper_chip.py：entrypoint / orchestration（args、run_strategy、輸出 JSON
 
 
 //=================================================================================
+Every step leaves a trace. (凡走過必留下痕跡)
+Motivation gets you started. Discipline keeps you going. — Mick Sung
+"The price of excellence is discipline."
