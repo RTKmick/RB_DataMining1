@@ -13,9 +13,6 @@ python rb_tv_app.py  (ngrok Authtoken)
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 python -m venv venv
 .\venv\Scripts\activate
-pip install FinMind
-pip install tqdm
-pip install tqdm pandas flask requests FinMind python-dotenv
 >>>python rb_tv_app.py
 
 //------------
@@ -57,6 +54,9 @@ LINE_CHANNEL_SECRET="eba6cfb3df016211a02d46b3ca41b654"
 # --- 安全驗證 ---
 WEBHOOK_PASSPHRASE="runbor111"
 
+
+
+
 //===========================================================================
 #ngrok Authtokens
 .\ngrok.exe config add-authtoken 2JU9XuyzEviEi5agopY8srTvXNp_5Em8z3aqiDk9txMpEpR4W
@@ -65,9 +65,6 @@ WEBHOOK_PASSPHRASE="runbor111"
 cd C:\ngrok\RB_DataMining
 python -m venv venv
 .\venv\Scripts\activate
-pip install flask requests shioaji
-python -m pip install --upgrade pip
-pip install flask requests shioaji python-dotenv
 
 //===========================================================================
 #ngrok git pull to GitHub (本機上傳到GitHub)
@@ -87,9 +84,6 @@ git pull origin master
 python -m venv venv
 .\venv\Scripts\activate
 
-# 一次裝好所有裝備
-pip install --upgrade pip
-pip install flask requests shioaji python-dotenv python-telegram-bot pandas
 //============================================================================
 # ======================================================
 # 3. 接收 TradingView 訊號的路徑

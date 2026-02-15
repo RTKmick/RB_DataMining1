@@ -1,9 +1,14 @@
+# 一次裝好所有裝備
+# pip install --upgrade pip
+# python -m pip install --upgrade -r requirements.txt
+
 # 基礎 HTTP / JSON / 環境變數
 requests
 python-dotenv
 urllib3
 
 # 數據分析
+tqdm
 pandas
 numpy
 
@@ -14,9 +19,11 @@ python-dateutil
 flask
 flask-cors
 gunicorn
+requests
 
 # 金融 API
 shioaji
+FinMind
 
 # Messaging
 python-telegram-bot
@@ -24,4 +31,3 @@ line-bot-sdk
 
 # (可選) 用於回測/技術分析若你之後會需要
 ta
-

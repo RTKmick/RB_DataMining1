@@ -360,6 +360,21 @@ def dashboard():
             signals["score_unified"] = final_score if final_score is not None else score_raw
             stock_info["signals"] = signals
 
+            # ✅ Geo KPI（給 dashboard.html 直接使用）
+            stock_info["geo"] = {
+                "grade": signals.get("geo_grade"),
+                "tag": signals.get("geo_tag"),
+                "zscore": signals.get("geo_zscore"),
+                "wavg_km": signals.get("geo_top5_wavg_km"),
+                "avg_km": signals.get("geo_top5_avg_km"),
+                "min_km": signals.get("geo_top5_min_km"),
+                "affinity": signals.get("geo_affinity_score"),
+                "baseline_tag": signals.get("geo_baseline_tag"),
+                "baseline_weight": signals.get("geo_baseline_weight"),
+                "adjust": signals.get("geo_adjust"),
+                "top5": signals.get("geo_top5_detail", []) or [],
+            }
+
             # --- flags: 直接用現有 signals 欄位推導（不用改 scraper） ---
             f5 = float(signals.get("foreign_net_5d", 0) or 0)
             l5 = float(signals.get("local_net_5d", 0) or 0)

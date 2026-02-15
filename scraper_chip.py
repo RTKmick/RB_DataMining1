@@ -15,6 +15,15 @@ from core.finmind_client import FinMindClient
 from core.adapter_tw import TaiwanStockAdapter
 from core.broker_master import load_broker_master_enriched
 from core.pipeline import analyze_whale_trajectory
+from core.pipeline import _load_company_geo_map  # ✅ 新增：強制載入公司經緯度主檔（warm-up）
+
+# ✅ 建議：用 scraper_chip.py 所在位置當根目錄，避免 cwd 不同造成相對路徑失效
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+DATA_PATH = os.path.join(PROJECT_ROOT, "data")
+RAW_PATH = os.path.join(PROJECT_ROOT, "rawdata")
+
+os.makedirs(DATA_PATH, exist_ok=True)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -31,7 +40,14 @@ def run_strategy(stock_id: str, days: int = 20, throttle_sec: float = 0.6, verif
 
     client = FinMindClient(token=token, verify_ssl=verify_ssl)
     adapter = TaiwanStockAdapter(client)
-    broker_map = load_broker_master_enriched(DATA_PATH)
+    broker_map = load_broker_master_enriched(RAW_PATH)
+
+
+    # ✅ Warm-up：強制用絕對路徑載入公司總部經緯度（避免 pipeline 用相對路徑失敗）
+    _load_company_geo_map(
+        tse_csv=os.path.join(RAW_PATH, "TSE_Company_V2.csv"),
+        otc_csv=os.path.join(RAW_PATH, "OTC_Company_V2.csv"),
+    )
 
     # 1) 交易日（排除今天）
     all_dates = adapter.get_trading_dates(lookback=180)

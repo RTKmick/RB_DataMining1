@@ -121,7 +121,7 @@
 
 <body>
 <div class="container py-5">
-  <h1 class="mb-4 text-center" style="color: #f1c40f;">📊 RB 掃地僧籌碼戰情室V1.3.0</h1>
+  <h1 class="mb-4 text-center" style="color: #f1c40f;">📊 RB 掃地僧籌碼戰情室V1.4.0</h1>
 
   <div class="row justify-content-center mb-3">
     <div class="col-lg-10">
@@ -300,6 +300,86 @@
             </div>
 
             {# ========= KPI：主力分數 & NetBuy ========= #}
+            {# ========= Geo KPI：分點距離/校正 ========= #}
+            <h6 class="text-info mt-4 mb-3">🧭 Geo Gate（分點↔公司HQ）</h6>
+
+            <div class="row mb-4 g-3">
+              <div class="col-md-3">
+                <div class="metric-card">
+                  <div class="metric-label">Geo Grade</div>
+                  <div class="metric-value">{{ sig.geo_grade if sig.geo_grade is defined else '-' }}</div>
+                  <div class="metric-label mt-1 text-warning">
+                    {{ sig.geo_tag if sig.geo_tag is defined else '' }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="metric-card">
+                  <div class="metric-label">Top5 W-Avg KM</div>
+                  <div class="metric-value">
+                    {{ sig.geo_top5_wavg_km if sig.geo_top5_wavg_km is defined else '-' }}
+                  </div>
+                  <div class="metric-label mt-1 text-secondary">
+                    min {{ sig.geo_top5_min_km if sig.geo_top5_min_km is defined else '-' }}
+                    | avg {{ sig.geo_top5_avg_km if sig.geo_top5_avg_km is defined else '-' }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="metric-card">
+                  <div class="metric-label">Geo Z-Score</div>
+                  <div class="metric-value">
+                    {{ sig.geo_zscore if sig.geo_zscore is defined else '-' }}
+                  </div>
+                  <div class="metric-label mt-1 text-secondary">
+                    affinity {{ sig.geo_affinity_score if sig.geo_affinity_score is defined else '-' }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="metric-card">
+                  <div class="metric-label">Baseline / Weight / Adjust</div>
+                  <div class="metric-value" style="font-size:1.15rem;">
+                    {{ sig.geo_baseline_tag if sig.geo_baseline_tag is defined else '-' }}
+                  </div>
+                  <div class="metric-label mt-1 text-warning">
+                    w={{ sig.geo_baseline_weight if sig.geo_baseline_weight is defined else '-' }}
+                    | adj={{ sig.geo_adjust if sig.geo_adjust is defined else '-' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {% if sig.geo_top5_detail is defined and sig.geo_top5_detail %}
+            <div class="row mb-4">
+              <div class="col-12">
+                <div class="table-responsive">
+                  <table class="table table-dark table-hover border-secondary">
+                    <thead>
+                      <tr>
+                        <th>Geo Top5</th>
+                        <th class="text-end">Net(張)</th>
+                        <th class="text-end">KM to HQ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for r in sig.geo_top5_detail %}
+                        <tr>
+                          <td><code>{{ r.broker_id }}</code> {{ r.broker_name }}</td>
+                          <td class="text-end {{ 'buy-row' if (r.net_lot|default(0)) > 0 else 'sell-row' }}">{{ r.net_lot }}</td>
+                          <td class="text-end text-warning">{{ r.km_to_hq }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
             <!-- KPI Row 1：四張卡 -->
             <div class="row mb-4 g-3">
               <div class="col-md-3">
@@ -327,6 +407,65 @@
                 <div class="metric-card">
                   <div class="metric-label">20日 NetBuy (張)</div>
                   <div class="metric-value">{{ sig.netbuy_20d_lot if sig.netbuy_20d_lot is defined else 0 }}</div>
+                </div>
+              </div>
+            </div>
+
+            {# ========= NEW KPI：Top15 名單穩定度 & 壓力結構 ========= #}
+            <div class="row mb-4 g-3">
+              <div class="col-md-3">
+                <div class="metric-card">
+                  <div class="metric-label">Top15 買方穩定度 (10D)</div>
+                  {% set st10 = sig.top15_buy_stability_10d if sig.top15_buy_stability_10d is defined else None %}
+                  <div class="metric-value">
+                    {% if st10 is not none %}{{ (st10*100) | round(1) }}%{% else %}-{% endif %}
+                  </div>
+                  <div class="metric-label">（越高=同一批人）</div>
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="metric-card">
+                  <div class="metric-label">Top15 買方穩定度 (20D)</div>
+                  {% set st20 = sig.top15_buy_stability_20d if sig.top15_buy_stability_20d is defined else None %}
+                  <div class="metric-value">
+                    {% if st20 is not none %}{{ (st20*100) | round(1) }}%{% else %}-{% endif %}
+                  </div>
+                  <div class="metric-label">Jaccard 平均</div>
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="metric-card">
+                  <div class="metric-label">壓力比 (5D)</div>
+                  {% set pr5 = sig.pressure_ratio_5d if sig.pressure_ratio_5d is defined else None %}
+                  <div class="metric-value">
+                    {% if pr5 is not none %}{{ pr5 | round(3) }}{% else %}-{% endif %}
+                  </div>
+                  <div class="metric-label">
+                    {% if pr5 is not none %}
+                      {{ '買方主導' if pr5 >= 0.55 else ('賣方主導' if pr5 <= 0.45 else '拉扯/震盪') }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="metric-card">
+                  <div class="metric-label">壓力比 (20D)</div>
+                  {% set pr20 = sig.pressure_ratio_20d if sig.pressure_ratio_20d is defined else None %}
+                  <div class="metric-value">
+                    {% if pr20 is not none %}{{ pr20 | round(3) }}{% else %}-{% endif %}
+                  </div>
+                  <div class="metric-label">
+                    {% if pr20 is not none %}
+                      {{ '買方主導' if pr20 >= 0.55 else ('賣方主導' if pr20 <= 0.45 else '拉扯/震盪') }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </div>
                 </div>
               </div>
             </div>
@@ -457,7 +596,6 @@
                 </div>
               </div>
             </div>
-
 
             {# ========= Breadth Trend Chart ========= #}
             <h6 class="text-info mt-3 mb-3">📉 廣度趨勢（買超 X 家 / 賣超 Y 家 / 差值）</h6>
