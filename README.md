@@ -47,4 +47,4 @@ For RUMBOR Data Mining
   - `Bat/`：啟動 Flask、ngrok、scraper 的批次檔。
 
 
-python .\SubPY\backtest_signals_60d.py --stock_ids 2454,6239,6805 --days 60 --horizons 5,10,20
+python .\SubPY\backtest_signals_60d.py --stock_ids 2317 --days 60 --horizons 5,10,20

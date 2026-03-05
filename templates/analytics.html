@@ -26,11 +26,38 @@
     檔案：<code>{{ csv_name }}</code> |
     樣本數：<span class="text-info">{{ total_samples }}</span> |
     產生時間：<span class="text-info">{{ generated_at }}</span>
+    <span class="ms-2" style="font-size:0.8rem;">（勾選清單來自此 CSV；要顯示 2317、2330 等更多檔請先執行回測，見下方說明）</span>
   </p>
+
+  {% if not error and available_stock_ids and available_stock_ids|length > 0 %}
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <form method="get" action="/analytics/" id="stock-filter-form" class="d-flex flex-wrap align-items-center gap-2">
+        <input type="hidden" name="filter" value="1">
+        <span class="text-secondary me-2">顯示股票：</span>
+        {% for sid in available_stock_ids %}
+        <label class="d-inline-flex align-items-center me-3 mb-1">
+          <input type="checkbox" name="stock_ids" value="{{ sid }}" class="form-check-input stock-cb"
+            {% if not filter_applied or sid in selected_stock_ids %}checked{% endif %}>
+          <span class="ms-1"><code>{{ sid }}</code></span>
+        </label>
+        {% endfor %}
+        <div class="d-inline-flex gap-1 ms-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="select-all">全選</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="select-none">取消全選</button>
+          <button type="submit" class="btn btn-outline-light btn-sm">套用篩選</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 
   {% if error %}
     <div class="alert alert-warning">{{ error }}</div>
   {% else %}
+    <div class="alert alert-secondary py-2 mb-3" style="font-size:0.9rem;">
+      <strong>怎麼看：</strong>上區塊看「籌碼狀態」— 優先參考 <span class="badge bg-success">ACCUMULATION</span>、<span class="badge bg-warning text-dark">MARKUP</span>、<span class="badge bg-secondary">NEUTRAL</span>；<span class="badge bg-danger">DISTRIBUTION</span> 建議減碼。下區塊看「分數區間」— 實戰可優先看 <strong>60-80</strong> 區間；40 以下偏空謹慎。
+    </div>
     <div class="card mb-3">
       <div class="card-body">
         <h5 class="card-title mb-3">各股票 × Monitor 狀態　→　未來報酬統計</h5>
@@ -127,10 +154,26 @@
         <p class="text-secondary mt-2" style="font-size:0.85rem;">
           Score 來源：優先使用 <code>final_score</code>，否則使用 <code>score / trend_score</code>，區間為 0-40 / 40-60 / 60-80 / 80+。
         </p>
+        <hr class="my-3 border-secondary">
+        <p class="text-secondary mb-0" style="font-size:0.85rem;">
+          <strong>如何讓勾選清單出現更多股票？</strong> 在專案根目錄執行回測（約需數分鐘），會更新 <code>data/backtest_signals_60d.csv</code>，Analytics 會自動顯示新股票：<br>
+          <code class="d-inline-block mt-1" style="background:#2a2a2a; padding:4px 8px;">python SubPY/backtest_signals_60d.py --stock_ids 2317,2330,2610,3105,2454,6239,6805</code>
+        </p>
       </div>
     </div>
   {% endif %}
 </div>
+<script>
+(function(){
+  var form = document.getElementById('stock-filter-form');
+  if (!form) return;
+  var all = document.getElementById('select-all');
+  var none = document.getElementById('select-none');
+  var cbs = form.querySelectorAll('.stock-cb');
+  if (all) all.addEventListener('click', function(){ cbs.forEach(function(c){ c.checked = true; }); });
+  if (none) none.addEventListener('click', function(){ cbs.forEach(function(c){ c.checked = false; }); });
+})();
+</script>
 </body>
 </html>
 

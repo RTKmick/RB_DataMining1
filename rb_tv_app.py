@@ -488,7 +488,22 @@ def analytics():
             total_samples=0,
             generated_at="N/A",
             stats=[],
+            stats_score=[],
+            available_stock_ids=[],
+            selected_stock_ids=[],
+            filter_applied=False,
         )
+
+    df["stock_id"] = df["stock_id"].astype(str)
+    available_stock_ids = sorted(df["stock_id"].dropna().unique().tolist())
+    selected_stock_ids = request.args.getlist("stock_ids")
+    filter_requested = "filter" in request.args
+    if filter_requested:
+        if selected_stock_ids:
+            df = df[df["stock_id"].isin(selected_stock_ids)].copy()
+        else:
+            df = df.iloc[0:0].copy()
+    # 未送篩選時：顯示全部
 
     stats = summarize_backtest_by_state(df)
     stats_score = summarize_backtest_by_score(df)
@@ -506,6 +521,9 @@ def analytics():
         generated_at=mtime,
         stats=stats,
         stats_score=stats_score,
+        available_stock_ids=available_stock_ids,
+        selected_stock_ids=selected_stock_ids,
+        filter_applied=filter_requested,
     )
 
 if __name__ == "__main__":

@@ -281,29 +281,43 @@ def run_backtest(
         return
 
     df_new = pd.DataFrame(rows)
-    df_new["stock_id"] = df_new["stock_id"].astype(str)
+    df_new["stock_id"] = df_new["stock_id"].astype(str).str.strip()
+
+    # 一律使用絕對路徑，避免因執行目錄不同讀寫到不同檔案
+    output_path = os.path.abspath(output_path)
+    print(f"📁 輸出檔：{output_path}")
 
     # 若已存在舊檔，先讀進來，刪掉本次 stock_ids 的舊樣本，再與新樣本合併
     df_old: pd.DataFrame
     if os.path.exists(output_path):
         try:
-            df_old = pd.read_csv(output_path, dtype={"stock_id": str})
-        except Exception:
+            df_old = pd.read_csv(output_path, dtype={"stock_id": str}, encoding="utf-8-sig")
+            df_old["stock_id"] = df_old["stock_id"].astype(str).str.strip()
+        except Exception as e:
+            print(f"⚠️ 讀取既有 CSV 失敗（{e}），將只寫入本次結果，舊資料不會被合併。")
             df_old = pd.DataFrame()
     else:
         df_old = pd.DataFrame()
 
     if not df_old.empty:
-        df_old["stock_id"] = df_old["stock_id"].astype(str)
-        df_old = df_old[~df_old["stock_id"].isin(stock_ids)]
-        df_out = pd.concat([df_old, df_new], ignore_index=True)
+        # 只刪除「本次有跑」的股票舊資料，其餘全部保留
+        df_keep = df_old[~df_old["stock_id"].isin(stock_ids)]
+        n_removed = len(df_old) - len(df_keep)
+        df_out = pd.concat([df_keep, df_new], ignore_index=True)
+        old_stocks = sorted(df_keep["stock_id"].unique().tolist())
+        new_stocks = sorted(df_new["stock_id"].unique().tolist())
+        print(f"📎 合併：既有 {len(df_old)} 筆（{len(df_old['stock_id'].unique())} 檔），移除本次 {len(stock_ids)} 檔的舊樣本（{n_removed} 筆）→ 保留 {len(df_keep)} 筆 + 本次 {len(df_new)} 筆 = 共 {len(df_out)} 筆（{len(df_out['stock_id'].unique())} 檔）")
     else:
         df_out = df_new
+        if os.path.exists(output_path):
+            print("⚠️ 未讀到既有資料，本次僅寫入新結果。")
+        else:
+            print("📎 為新檔案，直接寫入。")
 
     df_out = df_out.sort_values(["stock_id", "trade_date"]).reset_index(drop=True)
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df_out.to_csv(output_path, index=False, encoding="utf-8-sig")
-    print(f"💾 輸出完成：{output_path} （{len(df_out)} 筆樣本）")
+    print(f"💾 輸出完成：{output_path} （{len(df_out)} 筆，{df_out['stock_id'].nunique()} 檔股票）")
 
 
 def main() -> None:
