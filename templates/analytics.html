@@ -154,11 +154,16 @@
         <p class="text-secondary mt-2" style="font-size:0.85rem;">
           Score 來源：優先使用 <code>final_score</code>，否則使用 <code>score / trend_score</code>，區間為 0-40 / 40-60 / 60-80 / 80+。
         </p>
-        <hr class="my-3 border-secondary">
-        <p class="text-secondary mb-0" style="font-size:0.85rem;">
-          <strong>如何讓勾選清單出現更多股票？</strong> 在專案根目錄執行回測（約需數分鐘），會更新 <code>data/backtest_signals_60d.csv</code>，Analytics 會自動顯示新股票：<br>
-          <code class="d-inline-block mt-1" style="background:#2a2a2a; padding:4px 8px;">python SubPY/backtest_signals_60d.py --stock_ids 2317,2330,2610,3105,2454,6239,6805</code>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-body py-3">
+        <strong class="text-secondary">如何讓勾選清單出現更多股票？</strong>
+        <p class="text-secondary mb-2 mt-1" style="font-size:0.9rem;">
+          在專案根目錄執行回測（約需數分鐘），會更新 <code>data/backtest_signals_60d.csv</code>，重新整理此頁後勾選清單會自動出現新股票。
         </p>
+        <code class="d-block" style="background:#2a2a2a; color:#e0e0e0; padding:10px 12px; border-radius:6px; font-size:0.85rem;">python SubPY/backtest_signals_60d.py --stock_ids 2317,2330,2610,3105,2454,6239,6805</code>
       </div>
     </div>
   {% endif %}
