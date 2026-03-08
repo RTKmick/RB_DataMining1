@@ -6,7 +6,8 @@ echo 🚀 Preparing to upload changes...
 :: 寫入 Log
 echo %date% %time% - Run [Backup Upload] (upl_rb) >> Log.txt
 
-:: 先 add / commit，再 pull，最後 push（避免「有未暫存變更無法 rebase」）
+:: 先 add / commit，再 pull，最後 push（遠端用 main，本機可能是 master）
+set REMOTE_BRANCH=main
 git add .
 git status
 set BRANCH=
@@ -20,16 +21,17 @@ if errorlevel 1 (
   echo ✅ 已 commit。
 )
 
-git pull --rebase origin %BRANCH%
+git pull --rebase origin %REMOTE_BRANCH%
 if errorlevel 1 (
   echo ⚠️ pull 失敗，請手動處理衝突後再執行一次。
   pause
   exit /b 1
 )
 
-git push origin %BRANCH%
+:: 本機分支可能為 master，遠端為 main：推送到 origin main
+git push origin %BRANCH%:%REMOTE_BRANCH%
 if errorlevel 1 (
-  echo ❌ push 失敗，請檢查遠端分支是否為 %BRANCH%（或改為 main）。
+  echo ❌ push 失敗，請確認遠端有 %REMOTE_BRANCH% 分支。
   pause
   exit /b 1
 )
